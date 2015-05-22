@@ -1,4 +1,4 @@
-function [flowu] = flowu(ucurve, vfir, vsec, cint, cslope, cage, wm, wf, nt, 
+function [flowu] = flowu(ucurve, vfir, vsec, cint, cslope, cage, wm, wf, nt, ...
                          at, dmt, dft, y, t)
 
 % wm and wf are male and female wages.
@@ -9,8 +9,8 @@ function [flowu] = flowu(ucurve, vfir, vsec, cint, cslope, cage, wm, wf, nt,
 % t is age
 
 if dmt == 1 && dft == 1
-  flowu = ((wm + wf + y)^(1 - ucurve)) / (1 - ucurve) + 
-          vfir * nt - vsec * nt^2 - 
+  flowu = ((wm + wf + y)^(1 - ucurve)) / (1 - ucurve) + ...
+          vfir * nt - vsec * nt^2 - ...
           max(0, cint - cslope .* at - cage .* at .* t);
 elseif dmt == 1 && dft == 0
   flowu = ((wm + y)^(1 - ucurve)) / (1 - ucurve) + vfir * nt - vsec * nt^2;
