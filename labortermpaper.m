@@ -19,16 +19,17 @@ vfir   = 4;
 vsec   = 0.5;
 cint   = 10;
 cslope = 2;
-cage   = 0.1;
+cageint   = -0.2;
+cageslope = 0.1;
 
 % Dynamic parameters, borrowed from Dey Flinn
-Beta    = 0.9;  % Capitalized to prevent confusion with beta function
+Beta    = 0.91;  % Capitalized to prevent confusion with beta function
 deltam  = 0.032;
 deltaf  = 0.05;
-lambdam = 0.279;
-lambdaf = 0.243;
-mum     = 2.514;
-muf     = 2.403;
+lambdam = 0.3;
+lambdaf = 0.2;
+mum     = 2.8;
+muf     = 2.303;
 sigmam  = 0.139;
 sigmaf  = 0.135;
 
@@ -87,7 +88,8 @@ simvfir   = ones(sizestate, 1) * vfir;
 simvsec   = ones(sizestate, 1) * vsec;
 simcint   = ones(sizestate, 1) * cint;
 simcslope = ones(sizestate, 1) * cslope;
-simcage   = ones(sizestate, 1) * cage;
+simcageint   = ones(sizestate, 1) * cageint;
+simcageslope   = ones(sizestate, 1) * cageslope;
 
 yy = ones(sizestate, 1) * y;
 
@@ -120,22 +122,22 @@ tt = ones(sizestate,1)*t;
 % Choice-based value functions corresponding to four cases.
 % Man work, woman work
 VeeT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
-                simcslope, simcage, wmstate, wfstate, ntstate,...
+                simcslope, simcageint, simcageslope, wmstate, wfstate, ntstate,...
                 atstate, work, work, yy, tt) + term;
             
 % Man work, woman not
 VeuT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
-                simcslope, simcage, wmstate, wfstate, ntstate,...
+                simcslope, simcageint, simcageslope, wmstate, wfstate, ntstate,...
                 atstate, work, nowork, yy, tt) + term;      
             
 % Man not, woman work
 VueT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
-                simcslope, simcage, wmstate, wfstate, ntstate,...
+                simcslope, simcageint, simcageslope, wmstate, wfstate, ntstate,...
                 atstate, nowork, work, yy, tt) + term;
             
 % Man not, woman not
 VuuT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
-                simcslope, simcage, wmstate, wfstate, ntstate,...
+                simcslope, simcageint, simcageslope, wmstate, wfstate, ntstate,...
                 atstate, nowork, nowork, yy, tt) + term;
             
 
@@ -566,13 +568,13 @@ eq24=eq9;
 tt=ones(sizestate,1)*t;
 
 %State ue
-Vueup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,wmstate,wfstate,ntstate,atstate,nowork,work,yy,tt)+Beta*lambdam*(1-deltaf)*eq2+Beta*lambdam*deltaf*eq3+Beta*(1-lambdam)*deltaf*eq4+Beta*(1-lambdam)*Gamma*(1-deltaf)*eq5+Beta*(1-lambdam)*(1-Gamma)*(1-deltaf)*eq6;
+Vueup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,wmstate,wfstate,ntstate,atstate,nowork,work,yy,tt)+Beta*lambdam*(1-deltaf)*eq2+Beta*lambdam*deltaf*eq3+Beta*(1-lambdam)*deltaf*eq4+Beta*(1-lambdam)*Gamma*(1-deltaf)*eq5+Beta*(1-lambdam)*(1-Gamma)*(1-deltaf)*eq6;
 %State ee
-Veeup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,wmstate,wfstate,ntstate,atstate,work,work,yy,tt)+Beta*deltam*(1-deltaf)*eq8+Beta*(1-deltam)*deltaf*eq9+Beta*deltam*deltaf*eq10+Beta*Gamma*(1-deltam)*(1-deltaf)*eq11+Beta*(1-Gamma)*(1-deltam)*(1-deltaf)*eq12;
+Veeup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,wmstate,wfstate,ntstate,atstate,work,work,yy,tt)+Beta*deltam*(1-deltaf)*eq8+Beta*(1-deltam)*deltaf*eq9+Beta*deltam*deltaf*eq10+Beta*Gamma*(1-deltam)*(1-deltaf)*eq11+Beta*(1-Gamma)*(1-deltam)*(1-deltaf)*eq12;
 %State uu
-Vuuup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,wmstate,wfstate,ntstate,atstate,nowork,nowork,yy,tt)+Beta*lambdam*lambdaf*eq14+Beta*lambdam*(1-lambdaf)*eq15+Beta*(1-lambdam)*lambdaf*eq16+Beta*(1-lambdam)*(1-lambdaf)*Gamma*eq17+Beta*(1-lambdam)*(1-lambdaf)*(1-Gamma)*eq18;
+Vuuup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,wmstate,wfstate,ntstate,atstate,nowork,nowork,yy,tt)+Beta*lambdam*lambdaf*eq14+Beta*lambdam*(1-lambdaf)*eq15+Beta*(1-lambdam)*lambdaf*eq16+Beta*(1-lambdam)*(1-lambdaf)*Gamma*eq17+Beta*(1-lambdam)*(1-lambdaf)*(1-Gamma)*eq18;
 %State eu
-Veuup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,wmstate,wfstate,ntstate,atstate,work,nowork,yy,tt)+Beta*lambdaf*(1-deltam)*eq20+Beta*lambdaf*deltam*eq21+Beta*(1-lambdaf)*deltam*eq22+Beta*(1-lambdaf)*(1-deltam)*Gamma*eq23+Beta*(1-lambdaf)*(1-deltam)*(1-Gamma)*eq24;
+Veuup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,wmstate,wfstate,ntstate,atstate,work,nowork,yy,tt)+Beta*lambdaf*(1-deltam)*eq20+Beta*lambdaf*deltam*eq21+Beta*(1-lambdaf)*deltam*eq22+Beta*(1-lambdaf)*(1-deltam)*Gamma*eq23+Beta*(1-lambdaf)*(1-deltam)*(1-Gamma)*eq24;
 
 
 %Everything is done for period t. Store them in the matrices created
