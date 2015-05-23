@@ -15,11 +15,11 @@ rng(278);
 % Set hypothetical para
 % Flow utility para
 ucurve = 0.3;
-vfir   = 0.5;
-vsec   = 3;
-cint   = 2.5;
-cslope = 0.5;
-cage   = 0.01;
+vfir   = 4;
+vsec   = 0.5;
+cint   = 10;
+cslope = 2;
+cage   = 0.1;
 
 % Dynamic parameters, borrowed from Dey Flinn
 Beta    = 0.9;  % Capitalized to prevent confusion with beta function
@@ -98,6 +98,12 @@ nowork = zeros(sizestate, 1);
 % Now all the inputs to the function "flowu" are set as 3000*1 vectors.
 
 %%
+%%%%%%%%%%
+% From here, I denote "choice-based value functions" as Vee,Veu,Vue,Vuu.
+% These are functions of state space AND CHOICES.
+% I denote "value functions" as Vmf, Vm, Vf, Vu. These are functions only
+% of state space.
+
 % Simulate the model for 20 periods. 
 period = 20;
 
@@ -111,7 +117,7 @@ period = 20;
 t  = period;
 tt = ones(sizestate,1)*t;
 
-% Conditional utilities corresponding to four cases.
+% Choice-based value functions corresponding to four cases.
 % Man work, woman work
 VeeT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
                 simcslope, simcage, wmstate, wfstate, ntstate,...
@@ -132,8 +138,6 @@ VuuT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
                 simcslope, simcage, wmstate, wfstate, ntstate,...
                 atstate, nowork, nowork, yy, tt) + term;
             
-% This is conditional on realized wage AND CHOICES. i.e. THIS IS NOT A VALUE
-% FUNCTION AT PERIOD 20. 
 
 %%%%%%%%%%%%%%%%
 % Might worth considering%
@@ -176,20 +180,19 @@ Vuumat(:,t) = VuuT;
 %%%%%%
 
 % Below, I iterate the economy from period 19 to period 1.
-% Each step proceeds as follows. First, given conditional utilities at
-% period t+1 (conditional on realized wage and choice), calculate conditional
-% value function at period t+1. i.e. calculate optimal choice at period t+1
+% Each step proceeds as follows. First, given choice based value functions at
+% period t+1 (conditional on realized wage and choice), calculate 
+% value functions at period t+1. i.e. calculate optimal choice at period t+1
 % given offer/job destruction.
-% Second, using conditional value function obtained, calculate interim value function
-% between period t and t+1 (interim=offer realizes but not the value of
-% wage, called EMAX in the lecture). i.e. RHS of value function equations (1)-(24) in the paper.
-% Finally, calculate conditional utility function at period t (LHS=RHS, conditional
+% Second, using value function at t+1 obtained, calculate  EMAX by taking
+% appropriate integrals. i.e. RHS of equations (1)-(24) in the paper.
+% Finally, calculate choice-based value functions at period t (LHS=RHS, conditional
 % on realized wage at t and choice at t). This
 % completes period t's iteration.
 
 
 %Iteration from period 19 to priod 1.
-%Set period 20's conditional utility function as initial value.
+%Set period 20's choice based value functions as initial value.
 Veeup = VeeT;
 Veuup = VeuT;
 Vueup = VueT;
@@ -198,14 +201,14 @@ Vuuup = VuuT;
 for tau = 1:(period-1)
 t = period-tau;
 
-%Use the updated utility functions at period t+1.
+%Use the updated choice based value functions at period t+1.
 Vee = Veeup;
 Veu = Veuup;
 Vuu = Vuuup;
 Vue = Vueup;
 
 
-% Step 1: Solve period t+1's optimal choice.
+% Step 1: Solve period t+1's optimal choice. i.e. Derive value function at t+1.
 
 % Two choices: work and fertility. First consider working decision.
 
@@ -231,11 +234,11 @@ aux3    = [Vue,Vuu];
 % If noone can work (both unemployed previously and no offers, or one
 % unemployed previously and the other job destroyed, etc)
 Vu = Vuu;
-Pu = 4*ones(sizestate,1);
+Pu = ones(sizestate,1);
 
 clear aux aux2 aux3
-% This yields policy function and conditional value functions (conditional
-% on wages). 
+% This yields policy function and value functions (conditional only on
+% state values and NOT on choices). 
 
 
 % Also, I need to solve for policy function for fertility. But I will solve
@@ -245,8 +248,8 @@ clear aux aux2 aux3
 
 
 %%
-% Second step: Compute interim value functions (EMAX).
-% Given the optimal choice (for work) at period t+1, calculate RHS of equation 
+% Second step: Compute EMAX.
+% i.e. Given the optimal choice (for work) at period t+1, calculate RHS of equation 
 % (1)-(24).
 
 % To compute Emax taking expectation over wage needed. 
@@ -391,7 +394,7 @@ aux6((1+numel(wm)*numel(wf)*(numel(nt)-1)):numel(wm)*numel(wf)*numel(nt))=aux6((
 aux7=repmat(aux6,numel(at),1);
 aux8=[aux3,aux,aux5,aux7];
 
-%Policy function denoted as Pbue.
+%Policy function denoted as Pbee.
 [eq11,Pbee]=max(aux8,[],2);
 %Policy: 1=give birth no quit, 2 no give birth, 3=give birth male quit, 
 %4=give birth female quit.
@@ -555,10 +558,10 @@ clear aux aux2 aux3 aux4
 eq24=eq9;
 
 %All equations on RHS derived.
-%Interim value function (EMAX) derivation done.
+%EMAX derivation done.
 
 %Step 3
-%Conditional utility at period t (conditional on choice and wage).
+%Choice-based value function at period t (conditional on choice and state at t).
 %Just calculate the four equations on the paper.
 tt=ones(sizestate,1)*t;
 
@@ -573,8 +576,8 @@ Veuup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,wmstat
 
 
 %Everything is done for period t. Store them in the matrices created
-%before. Note that calculated policy is at period t+1. So they are
-%allocated t+1 column. For interim value function (EMAX), I put it in t+1
+%before. Note that calculated policies are at period t+1. So they are
+%allocated to t+1 column. For value functions (not choice-based), I put it in t+1
 %column as well (doesn't matter).
 Veemat(:,t)=Veeup;
 Veumat(:,t)=Veuup;
@@ -593,9 +596,17 @@ Pbeumat(:,t+1)=Pbeu;
 Pbuemat(:,t+1)=Pbue;
 Pbuumat(:,t+1)=Pbuu;
 
-%4 conditional utilities and 4 EMAX.
+%4 value functions and 4 choice based value functions.
 %4 Policy functions concerning working choice (conditional on offer arrival
 %and wage) and 4 policies concerning childbirth (one each for four working
 %status)
+% Pmfmat 1 = both work, 2 = male work, 3 = female work, 4 = none work
+% Pfmat 1 = female work, 2 = none work
+% Pmmat 1 = male work, 2= none work
+% Pumat 1 = none work
+% Pbeemat 1 = give birth no quit, 2 = no give birth, 3 = give birth male quit, 
+%         4 = give birth female quit.
+% Pbuemat, Pbeumat, Pbuumat 1 = give birth, 2 = not give birth 
+
 end
 
