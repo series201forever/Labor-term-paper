@@ -8,10 +8,12 @@ function [flowu] = flowu(ucurve, vfir, vsec, cint, cslope, cage, wm, wf, nt, ...
 % y is the outside income
 % t is age
 
-if dmt == 1 && dft == 1
+if dmt == 1 && dft == 1 && nt > 0
   flowu = ((wm + wf + y)^(1 - ucurve)) / (1 - ucurve) + ...
           vfir * nt - vsec * nt^2 - ...
           max(0, cint - cslope .* at - cage .* at .* t);
+elseif dmt == 1 && dft == 1 && nt == 0
+  flowu = ((wm + wf + y)^(1 - ucurve)) / (1 - ucurve) + vfir * nt - vsec * nt^2;
 elseif dmt == 1 && dft == 0
   flowu = ((wm + y)^(1 - ucurve)) / (1 - ucurve) + vfir * nt - vsec * nt^2;
 elseif dmt == 0 && dft == 1
