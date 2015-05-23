@@ -67,8 +67,8 @@ at = 1:5;
 %%
 % The size of the state space is 10 * 10 * 6 * 5 = 3000. 
 % Make it a one-dimensional vector.
-[a, b, c, d] = ndgrid(wm, wf, nt, at);
-state        = [a(:), b(:), c(:), d(:)];
+[aux1, aux2, aux3, aux4] = ndgrid(wm, wf, nt, at);
+state        = [aux1(:), aux2(:), aux3(:), aux4(:)];
 wmstate      = state(:, 1);
 wfstate      = state(:, 2);
 ntstate      = state(:, 3);
@@ -76,7 +76,7 @@ atstate      = state(:, 4);
 % Order of state: wm first, then wf, then nt, and finally at changes.
 sizestate    = numel(state(:, 1));
 
-clear a b c d
+clear aux1 aux2 aux3 aux4
 
 
 
@@ -113,20 +113,24 @@ tt = ones(sizestate,1)*t;
 
 % Conditional utilities corresponding to four cases.
 % Man work, woman work
-VeeT = arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,...
-                wmstate,wfstate,ntstate,atstate,work,work,yy,tt)+term;
+VeeT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
+                simcslope, simcage, wmstate, wfstate, ntstate,...
+                atstate, work, work, yy, tt) + term;
             
 % Man work, woman not
-VeuT = arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,...
-                wmstate,wfstate,ntstate,atstate,work,nowork,yy,tt)+term;
+VeuT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
+                simcslope, simcage, wmstate, wfstate, ntstate,...
+                atstate, work, nowork, yy, tt) + term;      
             
 % Man not, woman work
-VueT = arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,...
-                wmstate,wfstate,ntstate,atstate,nowork,work,yy,tt)+term;
-          
+VueT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
+                simcslope, simcage, wmstate, wfstate, ntstate,...
+                atstate, nowork, work, yy, tt) + term;
+            
 % Man not, woman not
-VuuT = arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope,simcage,...
-                wmstate,wfstate,ntstate,atstate,nowork,nowork,yy,tt)+term;
+VuuT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
+                simcslope, simcage, wmstate, wfstate, ntstate,...
+                atstate, nowork, nowork, yy, tt) + term;
             
 % This is conditional on realized wage AND CHOICES. i.e. THIS IS NOT A VALUE
 % FUNCTION AT PERIOD 20. 
@@ -251,42 +255,42 @@ distwm = lognpdf(wm,mum,sigmam);
 distwf = lognpdf(wf,muf,sigmaf);
 
 
-%Note that the variable we are taking expectation over differs depending on
-%which state we come from. Emax is path-dependent. Need for computing them each by each.
-%Start from equation number (1)-(6) in the paper.
+% Note that the variable we are taking expectation over differs depending on
+% which state we come from. Emax is path-dependent. Need for computing them each by each.
+% Start from equation number (1)-(6) in the paper.
 
-%Equation 2 requires taking expectation of Vmf over wm
-%Calculate 300*1 vector corresponding to expectation over wm.
-aux=(distwm*reshape(Vmf,numel(wm),numel(wf)*numel(nt)*numel(at))).';
-%Align the order of rows to match them (i.e. LHS state (wf,nt,at) =RHS
-%state (wf,nt,at+1) for each row).
-%Delete top rows with at=1.
-aux(1:numel(wf)*numel(nt))=[];
+% Equation 2 requires taking expectation of Vmf over wm
+% Calculate 300*1 vector corresponding to expectation over wm.
+aux = (distwm * reshape(Vmf, numel(wm), numel(wf)*numel(nt)*numel(at))).';
+% Align the order of rows to match them (i.e. LHS state (wf,nt,at) =RHS
+% state (wf,nt,at+1) for each row).
+% Delete top rows with at=1.
+aux(1 : numel(wf)*numel(nt)) = [];
 %%%%%%%%%%%Treatment at corner%%%%%%%%%%%%%%%%%
-%If at=5, then set a{t+1}=5 as well (it doesn't matter anyway).
-%Do the same for all cases below.
+% If at=5, then set a{t+1}=5 as well (it doesn't matter anyway).
+% Do the same for all cases below.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-aux((1+numel(wf)*numel(nt)*(numel(at)-1)):numel(wf)*numel(nt)*numel(at))=...
-    aux((1+numel(wf)*numel(nt)*(numel(at)-2)):numel(wf)*numel(nt)*(numel(at)-1));
+aux((1+numel(wf)*numel(nt)*(numel(at)-1)) : numel(wf)*numel(nt)*numel(at))=...
+    aux((1+numel(wf)*numel(nt)*(numel(at)-2)) : numel(wf)*numel(nt)*(numel(at)-1));
 %Finally, make it 3000*1 again.
-eq2=kron(aux,ones(numel(wm),1));
+eq2 = kron(aux, ones(numel(wm),1));
 clear aux
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%Equation 2 to be replaced by simulation
+% Equation 2 to be replaced by simulation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %equation 3 requires expectation of Vm over wm.
-aux=(distwm*reshape(Vm,numel(wm),numel(wf)*numel(nt)*numel(at))).';
+aux = (distwm * reshape(Vm,numel(wm), numel(wf)*numel(nt)*numel(at))).';
 %Same procedure as above.
-aux(1:numel(wf)*numel(nt))=[];
-aux((1+numel(wf)*numel(nt)*(numel(at)-1)):numel(wf)*numel(nt)*numel(at))=...
-    aux((1+numel(wf)*numel(nt)*(numel(at)-2)):numel(wf)*numel(nt)*(numel(at)-1));
+aux(1 : numel(wf)*numel(nt)) = [];
+aux((1+numel(wf)*numel(nt)*(numel(at)-1)) : numel(wf)*numel(nt)*numel(at))=...
+    aux((1+numel(wf)*numel(nt)*(numel(at)-2)) : numel(wf)*numel(nt)*(numel(at)-1));
 
-eq3=kron(aux,ones(numel(wm),1));
+eq3 = kron(aux, ones(numel(wm),1));
 clear aux
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%Equation 3 to be replaced by simulation
+% Equation 3 to be replaced by simulation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Equation 4 just requires alignment of at.
