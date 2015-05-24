@@ -6,9 +6,6 @@ rng(278);
 % Childcare cost         c_t(a_t)   = -max(0, cint - cslope * at)
 % Parameters are         para       = [ucurve, vcurve, cint, cslope]
 
-%%%%%%%%%%%%%%
-%NO STOCHASTIC UTILITY INTRODUCED YET. ALL THE DECISIONS ARE DETERMINISTIC.
-%%%%%%%%%%%%%%
 
 % Flow utility is stored in "flowu.m"
 
@@ -17,9 +14,9 @@ rng(278);
 ucurve = 0.3;
 vfir   = 4;
 vsec   = 0.5;
-cint   = 10;
-cslope = 2;
-cageint   = -0.2;
+cint   = 15;
+cslope = 3;
+cageint   = -6;
 cageslope = 0.1;
 
 % Dynamic parameters, borrowed from Dey Flinn
@@ -34,7 +31,7 @@ sigmam  = 0.139;
 sigmaf  = 0.135;
 
 %Child arrival probability
-Gamma = 0.3;  % Capitalized to prevent confusion with the gamma function
+Gamma = 0.6;  % Capitalized to prevent confusion with the gamma function
 
 %%
 % Set state space
@@ -106,7 +103,7 @@ nowork = zeros(sizestate, 1);
 % I denote "value functions" as Vmf, Vm, Vf, Vu. These are functions only
 % of state space.
 
-% Simulate the model for 20 periods. 
+% Solve DP for 20 periods. 
 period = 20;
 
 % To start backward induction, we need to have utility corresponding to four
@@ -168,6 +165,10 @@ Pbeemat = zeros(sizestate,period);
 Pbeumat = zeros(sizestate,period);
 Pbuemat = zeros(sizestate,period);
 Pbuumat = zeros(sizestate,period);
+Pwbeemat = zeros(sizestate,period);
+Pwbeumat = zeros(sizestate,period);
+Pwbuemat = zeros(sizestate,period);
+Pwbuumat = zeros(sizestate,period);
 
 % Store terminal period value that I calculated above.
 Veemat(:,t) = VeeT;
@@ -227,18 +228,20 @@ aux       = [Vee,Veu,Vue,Vuu];
 % If only  male can choose (female not getting offer, job just
 % destroyed etc...)
 aux2    = [Veu,Vuu];
-[Vm,Pm] = max(aux2,[],2);
+[Vm,aux4] = max(aux2,[],2);
+Pm = 2*aux4; % To make the indeces of choices aligned
 
 % If only female can choose
 aux3    = [Vue,Vuu];
-[Vf,Pf] = max(aux3,[],2);
+[Vf,aux5] = max(aux3,[],2);
+Pf = 2+aux5; % To make the indeces of choices aligned
 
 % If noone can work (both unemployed previously and no offers, or one
 % unemployed previously and the other job destroyed, etc)
 Vu = Vuu;
-Pu = ones(sizestate,1);
+Pu = 4*ones(sizestate,1); % To make the indeces of choices aligned
 
-clear aux aux2 aux3
+clear aux aux2 aux3 aux4 aux5
 % This yields policy function and value functions (conditional only on
 % state values and NOT on choices). 
 
@@ -249,7 +252,7 @@ clear aux aux2 aux3
 
 
 
-%%
+
 % Second step: Compute EMAX.
 % i.e. Given the optimal choice (for work) at period t+1, calculate RHS of equation 
 % (1)-(24).
@@ -344,11 +347,16 @@ aux3=Vue;
 aux3(1:numel(wm)*numel(wf)*numel(nt))=[];
 aux3((1+numel(wm)*numel(wf)*numel(nt)*(numel(at)-1)):numel(wm)*numel(wf)*numel(nt)*numel(at))=...
     aux3((1+numel(wm)*numel(wf)*numel(nt)*(numel(at)-2)):numel(wm)*numel(wf)*numel(nt)*(numel(at)-1));
-aux4=[aux2,aux3];
+aux4=[aux3,aux2];
 
-%Policy function denoted as Pbue.
+%Value and policy
 [eq5,Pbue]=max(aux4,[],2);
-%Pbue=1 give birth, =2 not give birth.
+Pwbue=3*ones(sizestate,1);
+
+%Pbue=1 not give birth, =2 give birth. I separate birth choice (stored in
+%Pbue) from corresponding work choice (stored in Pwbue). In this case,
+%there's no work choice involved, so Pwbue contains "only female keeps
+%working".
 
 clear aux aux2 aux3 aux4
 
@@ -394,14 +402,25 @@ aux6((1+numel(wm)*numel(wf)*(numel(nt)-1)):numel(wm)*numel(wf)*numel(nt))=aux6((
 %Repeat them numel(at) times. That gives me the appropriately updated state
 %space.
 aux7=repmat(aux6,numel(at),1);
-aux8=[aux3,aux,aux5,aux7];
+aux8=[aux,aux3,aux5,aux7];
 
 %Policy function denoted as Pbee.
-[eq11,Pbee]=max(aux8,[],2);
-%Policy: 1=give birth no quit, 2 no give birth, 3=give birth male quit, 
+[eq11,aux9]=max(aux8,[],2);
+%Policy: 1 =no give birth, 2=give birth no quit, 3=give birth male quit, 
 %4=give birth female quit.
 
-clear aux aux2 aux3 aux4 aux5 aux6 aux7 aux8
+% Split this policy into two: work and fertility
+Pbee = zeros(sizestate,1);
+Pbee(aux9>1) = 1;
+Pwbee = zeros(sizestate,1);
+Pwbee(aux9<3) = 1;
+Pwbee(aux9==3) = 3;
+Pwbee(aux9==4) = 2;
+% If Pbee =2, give birth, =1 no give birth.
+% If Pwbee=1, both work, =2 only male work, =3 only female work.
+% In this state, it makes a difference to separate the two choices.
+
+clear aux aux2 aux3 aux4 aux5 aux6 aux7 aux8 aux9 aux10
 
 
 %Equation 12
@@ -484,10 +503,11 @@ aux3=Vuu;
 aux3(1:numel(wm)*numel(wf)*numel(nt))=[];
 aux3((1+numel(wm)*numel(wf)*numel(nt)*(numel(at)-1)):numel(wm)*numel(wf)*numel(nt)*numel(at))=...
     aux3((1+numel(wm)*numel(wf)*numel(nt)*(numel(at)-2)):numel(wm)*numel(wf)*numel(nt)*(numel(at)-1));
-aux4=[aux2,aux3];
+aux4=[aux3, aux2];
 
 %Policy function denoted as Pbuu.
 [eq17,Pbuu]=max(aux4,[],2);
+Pwbuu=4*ones(sizestate,1);
 
 clear aux aux2 aux3 aux4
 
@@ -549,10 +569,11 @@ aux3=Veu;
 aux3(1:numel(wm)*numel(wf)*numel(nt))=[];
 aux3((1+numel(wm)*numel(wf)*numel(nt)*(numel(at)-1)):numel(wm)*numel(wf)*numel(nt)*numel(at))=...
     aux3((1+numel(wm)*numel(wf)*numel(nt)*(numel(at)-2)):numel(wm)*numel(wf)*numel(nt)*(numel(at)-1));
-aux4=[aux2,aux3];
+aux4=[aux3,aux2];
 
 %Policy function denoted as Pbeu.
 [eq23,Pbeu]=max(aux4,[],2);
+Pwbeu = 2*ones(sizestate,1);
 
 clear aux aux2 aux3 aux4
 
@@ -597,18 +618,157 @@ Pbeemat(:,t+1)=Pbee;
 Pbeumat(:,t+1)=Pbeu;
 Pbuemat(:,t+1)=Pbue;
 Pbuumat(:,t+1)=Pbuu;
+Pwbeemat(:,t+1)=Pwbee;
+Pwbeumat(:,t+1)=Pwbeu;
+Pwbuemat(:,t+1)=Pwbue;
+Pwbuumat(:,t+1)=Pwbuu;
 
-%4 value functions and 4 choice based value functions.
-%4 Policy functions concerning working choice (conditional on offer arrival
-%and wage) and 4 policies concerning childbirth (one each for four working
-%status)
+% 4 value functions (mf,m,f,u) and 4 choice based value functions (ee,eu,ue,uu).
+% 4 Policy functions concerning working choice (Pmf, Pm, Pf, Pu), 4 policy
+% functions concerning working choice when child arrives (Pwbee, Pwbeu, Pwbue,
+% Pwbuu) and 4 policies concerning childbirth (Pbee, Pbeu, Pbue, Pbuu).
+% 
 % Pmfmat 1 = both work, 2 = male work, 3 = female work, 4 = none work
-% Pfmat 1 = female work, 2 = none work
-% Pmmat 1 = male work, 2= none work
-% Pumat 1 = none work
-% Pbeemat 1 = give birth no quit, 2 = no give birth, 3 = give birth male quit, 
-%         4 = give birth female quit.
-% Pbuemat, Pbeumat, Pbuumat 1 = give birth, 2 = not give birth 
+% Pfmat 3 = female work, 4 = none work
+% Pmmat 2 = male work, 4= none work
+% Pumat 4 = none work
+% Pwbeemat 1= both work, 2 = male work, 3 = female work,
+% Pwbeumat 2= male work
+% Pwbuemat 3= female work
+% Pwbuumat 4= none work
+
+% In other words, 1= both work, 2 = male work, 3= female work and 4 =none
+% work no matter what the states are. This is why I aligned the number
+% above (e.g. lines 228,233,238).
+
+% Pbeemat, Pbuemat, Pbeumat, Pbuumat 1 = no give birth, 2 = give birth.
 
 end
+
+
+%%
+% I noticed that I need Policy at period 1, so let me calculate it here in
+% addition.
+aux       = [Veemat(:,1),Veumat(:,1),Vuemat(:,1),Vuumat(:,1)];
+[Vmfmat(:,1),Pmfmat(:,1)] = max(aux,[],2);
+
+aux2      = [Veumat(:,1),Vuumat(:,1)];
+[Vmmat(:,1),aux4] = max(aux2,[],2);
+Pmmat(:,1) = 2*aux4;
+
+aux3      = [Vuemat(:,1),Vuumat(:,1)];
+[Vfmat(:,1), aux5] = max(aux3,[],2);
+Pfmat(:,1) = 2+aux5;
+
+Vumat(:,1) = Vuumat(:,1);
+Pumat(:,1) = 4*ones(sizestate,1);
+
+clear aux aux2 aux3 aux4 aux5
+
+
+%%
+% Simulation of 10000 individuals
+nsim = 10000;
+
+
+% Draw shocks: job arrival, wage offer, job destruction (for both spouses)
+% and child arrival per period. In total, number of period * 7 shocks.
+
+% Job arrival
+simofferm = reshape(binornd(1,lambdam,period*nsim,1),nsim,period);
+simofferf = reshape(binornd(1,lambdaf,period*nsim,1),nsim,period);
+
+% Wage offer, ignoring normality for now. Wage taken from uniform over wm
+% and wf space.
+% Generate random indeces 
+simwagem = reshape(randi(10,period*nsim,1),nsim,period);
+% Pick elements of wm with corresponding indeces
+simwagemvalue = wm(simwagem);
+
+rng(21890);
+simwagef = reshape(randi(10,period*nsim,1),nsim,period);
+simwagefvalue = wf(simwagef);
+
+%Job destruction
+simdestm = reshape(binornd(1,deltam,period*nsim,1),nsim,period);
+simdestf = reshape(binornd(1,deltaf,period*nsim,1),nsim,period);
+
+
+% Child arrival
+simchildarr = reshape(binornd(1,Gamma,period*nsim,1),nsim,period);
+
+
+%Create matrix to store behaviors and realized states
+simwork = zeros(nsim,period);
+simstate = zeros(nsim,period);
+simnkids = zeros(nsim,period);
+
+% Calculate initial period
+% Initial arrival rate set higher so that we have more employed young
+% workers
+initofferm = reshape(binornd(1,0.8,period*nsim,1),nsim,period);
+initofferf = reshape(binornd(1,0.7,period*nsim,1),nsim,period);
+
+% Set initial working status and state
+for i = 1:nsim
+    if initofferm(i,1) + initofferf(i,1)==2 %Two offers
+        simstate(i,1) = simwagem(i,1)*simwagef(i,1);
+        simwork(i,1) = Pmfmat(simwagem(i,1)+(simwagef(i,1)-1)*numel(wm),1);
+        
+    elseif initofferm(i,1)==1               %Only male offer
+        simstate(i,1) = simwagem(i,1)*simwagef(i,1);
+        simwork(i,1) = Pmmat(simwagem(i,1)+(simwagef(i,1)-1)*numel(wm),1);
+        
+    elseif initofferf(i,1)==1               %Only female offer
+        simstate(i,1) = simwagem(i,1)*simwagef(i,1);
+        simwork(i,1) = Pfmat(simwagem(i,1)+(simwagef(i,1)-1)*numel(wm),1);
+        
+    else                                    %No offer
+        simstate(i,1) = simwagem(i,1)*simwagef(i,1);
+        simwork(i,1) = Pumat(simwagem(i,1)+(simwagef(i,1)-1)*numel(wm),1);
+        
+    end
+end
+
+%Now solve for the sequence of choices
+% for i = 1:nsim
+%     for t = 2:period
+%         
+%         if simwork(i,t-1)==1 % If both worked in the previous period
+%             
+%             if simdestm(i,t)+simdestf(i,t)==2 % If both jobs destroyed
+%                 simstate(i,t) = simstate(i,t-1)+numel(wm)*numel(wf)*numel(nt);
+%                 %State at evolves by one. Everything else stays the same.
+%                 simwork(i,t) = Pumat(simstate(i,t),t);
+%             
+%             elseif simdestm(i,t)==1 %Only male job destroyed
+%                 simstate(i,t) = simstate(i,t-1)+numel(wm)*numel(wf)*numel(nt);
+%                      %State at evolves by one. Everything else stays the same.
+%                 simwork(i,t) = Pfmat(simstate(i,t),t);
+%                 
+%             elseif simdestf(i,t)==1 % Only female job destroyed
+%                 simstate(i,t) = simstate(i,t-1)+numel(wm)*numel(wf)*numel(nt);
+%                      %State at evolves by one. Everything else stays the same.
+%                 simwork(i,t) = Pmmat(simstate(i,t),t);
+%                 
+%             elseif simchildarr(i,t)==1 %Child arrives
+%                 simnkids(i,t) = simnkids(i,t-1)+Pbeemat(i,t)-1;
+%                      %If give birth, add 1 to "simnkids".
+%                 if Pbeemat(i,t)== 1
+%                     % State evolution depends on choices. If not giving a birth
+%                 simstate(i,t) = simstate(i,t-1)+numel(wm)*numel(wf)*numel(nt);
+%                      %then state at evolves by one. Everything else stays the same.
+%                 elseif Pbeemat (i,t)>1
+%                     % If giving a birth,
+%                 simstate(i,t) = simstate(i,t-1)+
+%                 
+%                 
+%         if simofferm(i,t)+simofferf(i,t)==2
+%             
+%             
+% 
+% 
+% 
+% 
+
 
