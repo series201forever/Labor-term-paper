@@ -31,7 +31,7 @@ sigmam  = 0.139;
 sigmaf  = 0.135;
 
 %Child arrival probability
-Gamma = 0.6;  % Capitalized to prevent confusion with the gamma function
+Gamma = 0.3;  % Capitalized to prevent confusion with the gamma function
 
 %%
 % Set state space
@@ -410,8 +410,8 @@ aux8=[aux,aux3,aux5,aux7];
 %4=give birth female quit.
 
 % Split this policy into two: work and fertility
-Pbee = zeros(sizestate,1);
-Pbee(aux9>1) = 1;
+Pbee = ones(sizestate,1);
+Pbee(aux9>1) = 2;
 Pwbee = zeros(sizestate,1);
 Pwbee(aux9<3) = 1;
 Pwbee(aux9==3) = 3;
@@ -643,6 +643,11 @@ Pwbuumat(:,t+1)=Pwbuu;
 
 % Pbeemat, Pbuemat, Pbeumat, Pbuumat 1 = no give birth, 2 = give birth.
 
+%%%%%%%%%%%%%%%%%%%%%%%%
+% Note; by construction working choice at period t depends on period t's realized 
+% state value, while childbirth choice at period t depend on period t-1's
+% state value.
+%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 
@@ -681,13 +686,13 @@ simofferf = reshape(binornd(1,lambdaf,period*nsim,1),nsim,period);
 % Wage offer, ignoring normality for now. Wage taken from uniform over wm
 % and wf space.
 % Generate random indeces 
-simwagem = reshape(randi(10,period*nsim,1),nsim,period);
+simwofferm = reshape(randi(10,period*nsim,1),nsim,period);
 % Pick elements of wm with corresponding indeces
-simwagemvalue = wm(simwagem);
+simwagemvalue = wm(simwofferm);
 
 rng(21890);
-simwagef = reshape(randi(10,period*nsim,1),nsim,period);
-simwagefvalue = wf(simwagef);
+simwofferf = reshape(randi(10,period*nsim,1),nsim,period);
+simwagefvalue = wf(simwofferf);
 
 %Job destruction
 simdestm = reshape(binornd(1,deltam,period*nsim,1),nsim,period);
@@ -700,75 +705,417 @@ simchildarr = reshape(binornd(1,Gamma,period*nsim,1),nsim,period);
 
 %Create matrix to store behaviors and realized states
 simwork = zeros(nsim,period);
-simstate = zeros(nsim,period);
+simoffer= zeros(nsim,period);
 simnkids = zeros(nsim,period);
+simat    = ones(nsim,period);
+simwm    = zeros(nsim,period);
+simwf    = zeros(nsim,period);
+
+%Just to align notation as before
+simstate = zeros(nsim,period);
+
+%For each iteration, seven variables to update.
 
 % Calculate initial period
 % Initial arrival rate set higher so that we have more employed young
 % workers
-initofferm = reshape(binornd(1,0.8,period*nsim,1),nsim,period);
-initofferf = reshape(binornd(1,0.7,period*nsim,1),nsim,period);
+initofferm = reshape(binornd(1,0.3,nsim,1),nsim,1);
+initofferf = reshape(binornd(1,0.3,nsim,1),nsim,1);
 
 % Set initial working status and state
 for i = 1:nsim
-    if initofferm(i,1) + initofferf(i,1)==2 %Two offers
-        simstate(i,1) = simwagem(i,1)*simwagef(i,1);
-        simwork(i,1) = Pmfmat(simwagem(i,1)+(simwagef(i,1)-1)*numel(wm),1);
+    if initofferm(i) + initofferf(i)==2 
+        simoffer(i,1) = 1;%Two offers
+        simwm(i,1) = simwofferm(i,1);
+        simwf(i,1) = simwofferf(i,1);
+        simstate(i,1) = simwm(i,1)+(simwf(i,1)-1)*numel(wm);
+           %Assign the location of state (combination of drawn wm and wf)      
+        simwork(i,1) = Pmfmat(simstate(i,1),1);
         
-    elseif initofferm(i,1)==1               %Only male offer
-        simstate(i,1) = simwagem(i,1)*simwagef(i,1);
-        simwork(i,1) = Pmmat(simwagem(i,1)+(simwagef(i,1)-1)*numel(wm),1);
+    elseif initofferm(i)==1             
+        simoffer(i,1) = 2;%Only male offer
+        simwm(i,1) = simwofferm(i,1);
+        simwf(i,1) = simwofferf(i,1);  % Irrelevant. Assign random value
+        simstate(i,1) = simwm(i,1)+(simwf(i,1)-1)*numel(wm);
+        simwork(i,1) = Pmmat(simstate(i,1),1);
         
-    elseif initofferf(i,1)==1               %Only female offer
-        simstate(i,1) = simwagem(i,1)*simwagef(i,1);
-        simwork(i,1) = Pfmat(simwagem(i,1)+(simwagef(i,1)-1)*numel(wm),1);
+    elseif initofferf(i)==1 
+        simoffer(i,1) = 3;   %Only female offer
+        simwm(i,1) = simwofferm(i,1);  % Irrelevant. Assign random value
+        simwf(i,1) = simwofferf(i,1);  
+        simstate(i,1) = simwm(i,1)+(simwf(i,1)-1)*numel(wm);
+        simoffer(i,1) = 3;
+        simwork(i,1) = Pfmat(simstate(i,1),1);
         
-    else                                    %No offer
-        simstate(i,1) = simwagem(i,1)*simwagef(i,1);
-        simwork(i,1) = Pumat(simwagem(i,1)+(simwagef(i,1)-1)*numel(wm),1);
+    else                                    
+        simoffer(i,1) = 4;                  %No offer
+        simwm(i,1) = simwofferm(i,1);  % Irrelevant. Assign random value
+        simwf(i,1) = simwofferf(i,1);  % Irrelevant. Assign random value
+        simstate(i,1) = simwm(i,1)+(simwf(i,1)-1)*numel(wm);
+        simwork(i,1) = Pumat(simstate(i,1),1);
         
     end
 end
-
+%%
 %Now solve for the sequence of choices
-% for i = 1:nsim
-%     for t = 2:period
-%         
-%         if simwork(i,t-1)==1 % If both worked in the previous period
-%             
-%             if simdestm(i,t)+simdestf(i,t)==2 % If both jobs destroyed
-%                 simstate(i,t) = simstate(i,t-1)+numel(wm)*numel(wf)*numel(nt);
-%                 %State at evolves by one. Everything else stays the same.
-%                 simwork(i,t) = Pumat(simstate(i,t),t);
-%             
-%             elseif simdestm(i,t)==1 %Only male job destroyed
-%                 simstate(i,t) = simstate(i,t-1)+numel(wm)*numel(wf)*numel(nt);
-%                      %State at evolves by one. Everything else stays the same.
-%                 simwork(i,t) = Pfmat(simstate(i,t),t);
-%                 
-%             elseif simdestf(i,t)==1 % Only female job destroyed
-%                 simstate(i,t) = simstate(i,t-1)+numel(wm)*numel(wf)*numel(nt);
-%                      %State at evolves by one. Everything else stays the same.
-%                 simwork(i,t) = Pmmat(simstate(i,t),t);
-%                 
-%             elseif simchildarr(i,t)==1 %Child arrives
-%                 simnkids(i,t) = simnkids(i,t-1)+Pbeemat(i,t)-1;
-%                      %If give birth, add 1 to "simnkids".
-%                 if Pbeemat(i,t)== 1
-%                     % State evolution depends on choices. If not giving a birth
-%                 simstate(i,t) = simstate(i,t-1)+numel(wm)*numel(wf)*numel(nt);
-%                      %then state at evolves by one. Everything else stays the same.
-%                 elseif Pbeemat (i,t)>1
-%                     % If giving a birth,
-%                 simstate(i,t) = simstate(i,t-1)+
-%                 
-%                 
-%         if simofferm(i,t)+simofferf(i,t)==2
-%             
-%             
-% 
-% 
-% 
-% 
+for i = 1:nsim
+    for t = 2:period
+        
+        if simwork(i,t-1)==1 % If both worked in the previous period
+            
+            if simdestm(i,t)+simdestf(i,t)==2 % If both jobs destroyed
+                simoffer(i,t) = 4;            %No offers
+                simwm(i,t) = simwofferm(i,t);  % Irrelevant. Assign random value
+                simwf(i,t) = simwofferf(i,t);  % Irrelevant. Assign random value   
+                simnkids(i,t) =simnkids(i,t-1); %Kid doesn't change
+                simat(i,t) = min(simat(i,t-1)+1,numel(at));    %Age added by 1
+                
+                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                   %Assign state value
+                simwork(i,t) = Pumat(simstate(i,t),t); %Working choice
+            
+            elseif simdestm(i,t)==1 %Only male job destroyed
+                simoffer(i,t) = 3;             % Only female offer
+                simwm(i,t) = simwofferm(i,t);  % Irrelevant. Assign random value
+                simwf(i,t) = simwf(i,t-1);     % She is offered the same wage as before
+                simnkids(i,t) =simnkids(i,t-1); %Kid doesn't change
+                simat(i,t) = min(simat(i,t-1)+1,numel(at));    %Age added by 1
+                
+                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                   
+                simwork(i,t) = Pfmat(simstate(i,t),t);
+
+                
+            elseif simdestf(i,t)==1 % Only female job destroyed
+                simoffer(i,t) = 2;          %Only male offer
+                simwm(i,t) = simwm(i,t-1);  % He is offered the same wage
+                simwf(i,t) = simwofferf(i,t);  % Irrelevant. Assign random value   
+                simnkids(i,t) =simnkids(i,t-1);
+                simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                
+                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                   
+                simwork(i,t) = Pmmat(simstate(i,t),t);
+                
+            elseif simchildarr(i,t)==1 %Child arrives
+                simoffer(i,t) = 1;         %Offer status remains the same.
+                simwm(i,t) = simwm(i,t-1);  % He is offered the same wage
+                simwf(i,t) = simwf(i,t-1);  % She also.
+                simnkids(i,t) = min(simnkids(i,t-1)+Pbeemat(simstate(i,t-1),t)-1,numel(nt));
+                     %If give birth, add 1 to "simnkids".
+                     
+                if Pbeemat(simstate(i,t-1),t)== 1
+                    % State evolution depends on choices. If not giving a birth
+                    simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                    simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                       
+                    simwork(i,t) = simwork(i,t-1); %Work status not changing
+
+                elseif Pbeemat(simstate(i,t-1),t)== 2
+                    % If giving a birth,
+                 simat(i,t) = 1; %at re-set to 1.
+                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                
+                 simwork(i,t)=Pwbeemat(simstate(i,t-1),t); %Work choice involved.
+                      %Choice based on state at t-1. This is how Pwbee is
+                      %defined.
+              
+                end
+                
+            elseif simchildarr(i,t)==0 %Nothing happens
+                simoffer(i,t) = 1;
+                simwm(i,t) = simwm(i,t-1);  % He is offered the same wage
+                simwf(i,t) = simwf(i,t-1);  % She also.
+                simnkids(i,t) = simnkids(i,t-1);
+                simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                simwork(i,t) = simwork(i,t-1);
+                
+            else
+                disp('error')
+                
+            end
+            
+        elseif simwork(i,t-1)==2 %Only male worked in the previous period
+            
+            if simofferf(i,t)==1 && simdestm(i,t)==0 %Female got offer
+                 simoffer(i,t) = 1;
+                 simwm(i,t) = simwm(i,t-1);  % He is offered the same wage
+                 simwf(i,t) = simwofferf(i,t);  % She got a new offer
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                %State at evolves by one. Everything else stays the same.
+
+                 simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
+
+                 
+            elseif simofferf(i,t)==1 && simdestm(i,t)==1 %Female offer & male destroy
+                 simoffer(i,t) = 3;    %Only female offer
+                 simwm(i,t) = simwofferm(i,t);  % Irrelevant:
+                 simwf(i,t) = simwofferf(i,t);  % She got a new offer
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                %State at evolves by one. Everything else stays the same.
+
+                 simwork(i,t) = Pfmat(simstate(i,t),t); %Femal choose whether to work
+                 
+            elseif simofferf(i,t)==0 && simdestm(i,t)==1 %Male destroy
+                 simoffer(i,t) = 4;    %No offer
+                 simwm(i,t) = simwofferm(i,t);  % Irrelevant
+                 simwf(i,t) = simwofferf(i,t);  % Irrelevant
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                %State at evolves by one. Everything else stays the same.
+
+                 simwork(i,t) = Pumat(simstate(i,t),t); 
+                 
+            elseif   simchildarr(i,t)==1 %Child arrives
+                simoffer(i,t) = 2;         %Offer status remains the same.
+                simwm(i,t) = simwm(i,t-1);  % He is offered the same wage
+                simwf(i,t) = simwofferf(i,t);  % Irrelevant.
+                simnkids(i,t) =  min(simnkids(i,t-1)+Pbeumat(simstate(i,t-1),t)-1,numel(nt));
+                     %If give birth, add 1 to "simnkids".
+                     
+                if Pbeumat(simstate(i,t-1),t)== 1
+                    % State evolution depends on choices. If not giving a birth
+                    simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                    simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                       
+                    simwork(i,t) = simwork(i,t-1); %Work status not changing
+
+                elseif Pbeumat(simstate(i,t-1),t)== 2
+                    % If giving a birth,
+                 simat(i,t) = 1; %at re-set to 1.
+                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                
+                 simwork(i,t)=simwork(i,t-1);%Pwbeumat(simstate(i,t-1),t); %Work choice not 
+                 %involved. So simwork(i,t)=simwork(i,t-1) should work.
+                 %Here I let them choose to check if the actually choose to
+                 %stay (validity check).
+              
+                end
+                
+            elseif simchildarr(i,t)==0 %Nothing happens
+                simoffer(i,t) = 2;
+                simwm(i,t) = simwm(i,t-1);  % He is offered the same wage
+                simwf(i,t) = simwofferf(i,t);  % Irrelevant
+                simnkids(i,t) = simnkids(i,t-1);
+                simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                simwork(i,t) = simwork(i,t-1);
+                
+            else
+                disp('error')
+            end
+            
+        elseif simwork(i,t-1)==3 %Only female worked in the previous period
+            
+            if simofferm(i,t)==1 && simdestf(i,t)==0 %Male got offer
+                 simoffer(i,t) = 1;
+                 simwm(i,t) = simwofferm(i,t);  % He got an offer
+                 simwf(i,t) = simwf(i,t-1);  % She is offered the same wage
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                %State at evolves by one. Everything else stays the same.
+
+                 simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
+
+                 
+            elseif simofferm(i,t)==1 && simdestf(i,t)==1 %Male offer & Female destroy
+                 simoffer(i,t) = 2;    %Only Male offer
+                 simwm(i,t) = simwofferm(i,t);  % He got a new offer:
+                 simwf(i,t) = simwofferf(i,t);  % Irrelevant
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                %State at evolves by one. Everything else stays the same.
+
+                 simwork(i,t) = Pmmat(simstate(i,t),t); %Femal choose whether to work
+                 
+            elseif simofferm(i,t)==0 && simdestf(i,t)==1 %Female destroy
+                 simoffer(i,t) = 4;    %No offer
+                 simwm(i,t) = simwofferm(i,t);  % Irrelevant
+                 simwf(i,t) = simwofferf(i,t);  % Irrelevant
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                %State at evolves by one. Everything else stays the same.
+
+                 simwork(i,t) = Pumat(simstate(i,t),t); 
+                 
+            elseif   simchildarr(i,t)==1 %Child arrives
+                simoffer(i,t) = 3;         %Offer status remains the same.
+                simwm(i,t) = simwofferm(i,t);  % Irrelevant.
+                simwf(i,t) = simwf(i,t-1);  % She is offered the same wage.
+                simnkids(i,t) =  min(simnkids(i,t-1)+Pbuemat(simstate(i,t-1),t)-1,numel(nt));
+                     %If give birth, add 1 to "simnkids".
+                     
+                if Pbuemat(simstate(i,t-1),t)== 1
+                    % State evolution depends on choices. If not giving a birth
+                    simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                    simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                       
+                    simwork(i,t) = simwork(i,t-1); %Work status not changing
+
+                elseif Pbuemat(simstate(i,t-1),t)== 2
+                    % If giving a birth,
+                 simat(i,t) = 1; %at re-set to 1.
+                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                
+                 simwork(i,t)=simwork(i,t-1);%Pwbuemat(simstate(i,t-1),t); %Work choice not 
+                 %involved. So simwork(i,t)=simwork(i,t-1) should work.
+                 %Here I let them choose to check if the actually choose to
+                 %stay (validity check).
+              
+                end
+                
+            elseif simchildarr(i,t)==0 %Nothing happens
+                simoffer(i,t) = 3;
+                simwm(i,t) = simwofferm(i,t);  % Irrelevant
+                simwf(i,t) = simwf(i,t-1);  % same wage
+                simnkids(i,t) = simnkids(i,t-1);
+                simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                simwork(i,t) = simwork(i,t-1);
+                
+            else
+                disp('error')
+            end
+            
+        elseif simwork(i,t-1)==4 % None worked in the previous period
+            
+            if simofferm(i,t)==1 && simofferf(i,t)==1 %Both got offer
+                 simoffer(i,t) = 1;
+                 simwm(i,t) = simwofferm(i,t);  % He got an offer
+                 simwf(i,t) = simwofferf(i,t);  % She also
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+               
+
+                 simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
+
+                 
+            elseif simofferm(i,t)==1 && simofferf(i,t)==0 %Male offer
+                 simoffer(i,t) = 2;    %Only Male offer
+                 simwm(i,t) = simwofferm(i,t);  % He got a new offer:
+                 simwf(i,t) = simwofferf(i,t);  % Irrelevant
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                %State at evolves by one. Everything else stays the same.
+
+                 simwork(i,t) = Pmmat(simstate(i,t),t); %Femal choose whether to work
+                 
+            elseif simofferm(i,t)==0 && simofferf(i,t)==1 %Female offer
+                 simoffer(i,t) = 3;    %No offer
+                 simwm(i,t) = simwofferm(i,t);  % Irrelevant
+                 simwf(i,t) = simwofferf(i,t);  % She got an offer
+                 simnkids(i,t) =simnkids(i,t-1);
+                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                %State at evolves by one. Everything else stays the same.
+
+                 simwork(i,t) = Pfmat(simstate(i,t),t); 
+                 
+            elseif   simchildarr(i,t)==1 %Child arrives
+                simoffer(i,t) = 4;         %Offer status remains the same.
+                simwm(i,t) = simwofferm(i,t);  % Irrelevant.
+                simwf(i,t) = simwofferf(i,t-1);  % Irrelevant.
+                simnkids(i,t) =  min(simnkids(i,t-1)+Pbuumat(simstate(i,t-1),t)-1,numel(nt));
+                     %If give birth, add 1 to "simnkids".
+                     
+                if Pbuumat(simstate(i,t-1),t)== 1
+                    % State evolution depends on choices. If not giving a birth
+                    simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                    simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                       
+                    simwork(i,t) = simwork(i,t-1); %Work status not changing
+
+                elseif Pbuumat(simstate(i,t-1),t)== 2
+                    % If giving a birth,
+                 simat(i,t) = 1; %at re-set to 1.
+                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                
+                 simwork(i,t)=simwork(i,t-1);
+              
+                end
+                
+            elseif simchildarr(i,t)==0 %Nothing happens
+                simoffer(i,t) = 4;
+                simwm(i,t) = simwofferm(i,t);  % Irrelevant
+                simwf(i,t) = simwofferf(i,t-1);  % Irrelevant
+                simnkids(i,t) = simnkids(i,t-1);
+                simat(i,t) = min(simat(i,t-1)+1,numel(at));
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                simwork(i,t) = simwork(i,t-1);
+                
+            else
+                disp('error')
+            end
+        end
+    end
+end
+
+        
+            
+            
 
 
+
+
+
+%%
+%Memos
+%(1)
+%I solved all the value/policy functions first, and then simulate the model
+%by drawing set of individuals.
+%To solve value/policy, I need to solve it at all possible states. In my
+%case, without on-the job search, for male "male being
+%unemployed, getting offer of wm, at the state on wf,nt,at, and choose whether
+%to accept". There are 3000 cases in total at which they make decision
+%(numel(wm)*numel(wf)*numel(nt)*numel(at)). Analogous for female (3000
+%cases).
+
+%Now, the fact that I only have 3000 cases for each spouses is because we don't have
+%on the job search. With on the job search, it becomes "male either being
+%unemployed or working at wm, getting offer of wm' at the state on wf,nt,at,
+%and choose whether to accept". In this case, the number of cases become
+%30000.
+
+%Clearly, once I make grid of wm and wf finer, the number of state
+%increases by the rate of cube. Curse of dimensionality realizes.
+
+%(2)
+%Here job-choice at t is based on state at t. Child-choice and relevant
+%job-choice is based on state at t-1. This complicates things. i.e. If no
+%child arrival, update is first state, and then action. If child arrives,
+%first action update, and then state.
