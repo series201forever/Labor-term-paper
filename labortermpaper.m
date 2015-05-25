@@ -14,10 +14,10 @@ rng(278);
 ucurve = 0.3;
 vfir   = 4;
 vsec   = 0.5;
-cint   = 15;
-cslope = 3;
-cageint   = -6;
-cageslope = 0.1;
+cint   = 25;
+cslope = 5;    
+cageint   = -3;
+cageslope = 0.5;
 
 % Dynamic parameters, borrowed from Dey Flinn
 Beta    = 0.91;  % Capitalized to prevent confusion with beta function
@@ -31,7 +31,7 @@ sigmam  = 0.139;
 sigmaf  = 0.135;
 
 %Child arrival probability
-Gamma = 0.3;  % Capitalized to prevent confusion with the gamma function
+Gamma = 0.1;  % Capitalized to prevent confusion with the gamma function
 
 %%
 % Set state space
@@ -771,7 +771,7 @@ for i = 1:nsim
                 simat(i,t) = min(simat(i,t-1)+1,numel(at));    %Age added by 1
                 
                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                    %Assign state value
                 simwork(i,t) = Pumat(simstate(i,t),t); %Working choice
             
@@ -783,7 +783,7 @@ for i = 1:nsim
                 simat(i,t) = min(simat(i,t-1)+1,numel(at));    %Age added by 1
                 
                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                    
                 simwork(i,t) = Pfmat(simstate(i,t),t);
 
@@ -796,7 +796,7 @@ for i = 1:nsim
                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
                 
                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                    
                 simwork(i,t) = Pmmat(simstate(i,t),t);
                 
@@ -811,7 +811,7 @@ for i = 1:nsim
                     % State evolution depends on choices. If not giving a birth
                     simat(i,t) = min(simat(i,t-1)+1,numel(at));
                     simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                        
                     simwork(i,t) = simwork(i,t-1); %Work status not changing
 
@@ -819,7 +819,7 @@ for i = 1:nsim
                     % If giving a birth,
                  simat(i,t) = 1; %at re-set to 1.
                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 
                  simwork(i,t)=Pwbeemat(simstate(i,t-1),t); %Work choice involved.
                       %Choice based on state at t-1. This is how Pwbee is
@@ -834,7 +834,7 @@ for i = 1:nsim
                 simnkids(i,t) = simnkids(i,t-1);
                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 simwork(i,t) = simwork(i,t-1);
                 
             else
@@ -851,7 +851,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
@@ -864,7 +864,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pfmat(simstate(i,t),t); %Femal choose whether to work
@@ -876,7 +876,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pumat(simstate(i,t),t); 
@@ -892,7 +892,7 @@ for i = 1:nsim
                     % State evolution depends on choices. If not giving a birth
                     simat(i,t) = min(simat(i,t-1)+1,numel(at));
                     simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                        
                     simwork(i,t) = simwork(i,t-1); %Work status not changing
 
@@ -900,7 +900,7 @@ for i = 1:nsim
                     % If giving a birth,
                  simat(i,t) = 1; %at re-set to 1.
                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 
                  simwork(i,t)=simwork(i,t-1);%Pwbeumat(simstate(i,t-1),t); %Work choice not 
                  %involved. So simwork(i,t)=simwork(i,t-1) should work.
@@ -916,7 +916,7 @@ for i = 1:nsim
                 simnkids(i,t) = simnkids(i,t-1);
                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 simwork(i,t) = simwork(i,t-1);
                 
             else
@@ -932,7 +932,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
@@ -945,7 +945,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pmmat(simstate(i,t),t); %Femal choose whether to work
@@ -957,7 +957,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pumat(simstate(i,t),t); 
@@ -973,7 +973,7 @@ for i = 1:nsim
                     % State evolution depends on choices. If not giving a birth
                     simat(i,t) = min(simat(i,t-1)+1,numel(at));
                     simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                        
                     simwork(i,t) = simwork(i,t-1); %Work status not changing
 
@@ -981,7 +981,7 @@ for i = 1:nsim
                     % If giving a birth,
                  simat(i,t) = 1; %at re-set to 1.
                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 
                  simwork(i,t)=simwork(i,t-1);%Pwbuemat(simstate(i,t-1),t); %Work choice not 
                  %involved. So simwork(i,t)=simwork(i,t-1) should work.
@@ -997,7 +997,7 @@ for i = 1:nsim
                 simnkids(i,t) = simnkids(i,t-1);
                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 simwork(i,t) = simwork(i,t-1);
                 
             else
@@ -1013,7 +1013,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                
 
                  simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
@@ -1026,7 +1026,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pmmat(simstate(i,t),t); %Femal choose whether to work
@@ -1038,7 +1038,7 @@ for i = 1:nsim
                  simnkids(i,t) =simnkids(i,t-1);
                  simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pfmat(simstate(i,t),t); 
@@ -1054,7 +1054,7 @@ for i = 1:nsim
                     % State evolution depends on choices. If not giving a birth
                     simat(i,t) = min(simat(i,t-1)+1,numel(at));
                     simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                        
                     simwork(i,t) = simwork(i,t-1); %Work status not changing
 
@@ -1062,7 +1062,7 @@ for i = 1:nsim
                     % If giving a birth,
                  simat(i,t) = 1; %at re-set to 1.
                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 
                  simwork(i,t)=simwork(i,t-1);
               
@@ -1075,7 +1075,7 @@ for i = 1:nsim
                 simnkids(i,t) = simnkids(i,t-1);
                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
-                  (simnkids(i,t)-1)*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
+                  (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 simwork(i,t) = simwork(i,t-1);
                 
             else
@@ -1086,10 +1086,142 @@ for i = 1:nsim
 end
 
         
-            
-            
+%%            
+%%%%%%%%%%%%
+%Summary statistics
+%%%%%%%%%%%%
 
 
+%%%%%%%%%%%%
+% Things related to labor market status
+%%%%%%%%%%%%
+
+%Employment rate, by age
+empm=zeros(nsim,period);
+empm(simwork==1|simwork==2)=1;
+empf=zeros(nsim,period);
+empf(simwork==1|simwork==3)=1;
+
+empratem=sum(empm,1)/nsim;
+empratef=sum(empf,1)/nsim;
+
+%Number of quitting
+eetoeu=zeros(nsim,period);
+eetoue=zeros(nsim,period);
+uetouu=zeros(nsim,period);
+eutouu=zeros(nsim,period);
+eetouu=zeros(nsim,period);
+
+
+for i=1:nsim
+    for t=2:period
+        if simwork(i,t-1)==1 && simwork(i,t)==3
+        eetoue(i,t)=1;
+        elseif simwork(i,t-1)==1 && simwork(i,t)==2
+        eetoeu(i,t)=1;
+        elseif simwork(i,t-1)==1 && simwork(i,t)==4
+        eetouu(i,t)=1;  
+        elseif simwork(i,t-1)==2 && simwork(i,t)==4
+        eutouu(i,t)=1;
+        elseif simwork(i,t-1)==3 && simwork(i,t)==4
+        uetouu(i,t)=1;  
+        end
+    end
+end
+
+%Quitting probability
+pdestm=sum(sum(eutouu))/(numel(simwork(simwork==2)));
+pdestf=sum(sum(uetouu))/(numel(simwork(simwork==3)));
+pdestmf=sum(sum(eetouu))/(numel(simwork(simwork==1)));
+pquitm=sum(sum(eetoue))/(numel(simwork(simwork==1)));
+pquitf=sum(sum(eetoeu))/(numel(simwork(simwork==1)));
+
+%%
+%%%%%%%%%%
+% Things related to child
+%%%%%%%%%%
+
+%Employment rate conditional on number of kids
+empmkid=zeros(numel(nt),period);
+empfkid=zeros(numel(nt),period);
+for n = 1:6
+aux=zeros(nsim,period);
+aux((simwork==1|simwork==2)&simnkids==(n-1))=1;
+aux2=zeros(nsim,period);
+aux2((simwork==1|simwork==3)&simnkids==(n-1))=1;
+empmkid(n,:)=sum(aux,1)/numel(simnkids(simnkids==(n-1)));
+empfkid(n,:)=sum(aux2,1)/numel(simnkids(simnkids==(n-1)));
+end
+
+%Number of quitting together with giving a birth
+quitbirthm=zeros(nsim,period);
+quitbirthf=zeros(nsim,period);
+%Number of child born at each age
+childborn=zeros(nsim,period);
+
+for i=1:nsim
+    for t=2:period
+        if simnkids(i,t-1)<simnkids(i,t) && simwork(i,t-1)==1 && simwork(i,t)==3
+        quitbirthm(i,t)=1;
+        elseif simnkids(i,t-1)<simnkids(i,t) && simwork(i,t-1)==1 && simwork(i,t)==2
+        quitbirthf(i,t)=1;
+        end
+        
+        if simnkids(i,t-1)<simnkids(i,t)
+        childborn(i,t)=1;
+        end
+        
+    end
+end
+
+
+%Number of children at age 30
+histnkids30=hist(simnkids(:,10));
+%Number of children at age 40
+histnkids40=hist(simnkids(:,20));
+
+
+
+%Probability of quitting with birth = number of quitting / number of children
+pbquitm=sum(sum(quitbirthm))/sum(simnkids(:,period));
+pbquitf=sum(sum(quitbirthf))/sum(simnkids(:,period));
+
+%Probability of quitting with birth / per age
+pquitagem=zeros(period,1);
+pquitagef=zeros(period,1);
+for t=2:period
+pquitagem(t)=sum(quitbirthm(:,t))/sum(childborn(:,t));
+pquitagef(t)=sum(quitbirthf(:,t))/sum(childborn(:,t));
+end
+
+%Probability of quitting with birth / per income (extreme cases)
+%Identifier of the subset
+brich=zeros(nsim,period);
+mrich=zeros(nsim,period);
+frich=zeros(nsim,period);
+mid=zeros(nsim,period);
+bpoor=zeros(nsim,period);
+brich(simwm>6&simwf>6&simoffer==1)=1;
+mrich(simwm>6&simwf<=4&simoffer==1)=1;
+frich(simwm<=4&simwf>6&simoffer==1)=1;
+mid(simwm<=6&simwm>=4&simwf<=6&simwf>=4&simoffer==1)=1;
+bpoor(simwm<4&simwf<4&simoffer==1)=1;
+
+%Take probability for those samples matched to the identifier
+pquitbrichm=sum(sum(quitbirthm(brich>0)))/sum(sum(childborn(brich>0)));
+pquitmrichm=sum(sum(quitbirthm(mrich>0)))/sum(sum(childborn(mrich>0)));
+pquitfrichm=sum(sum(quitbirthm(frich>0)))/sum(sum(childborn(frich>0)));
+pquitmidm=sum(sum(quitbirthm(mid>0)))/sum(sum(childborn(mid>0)));
+pquitbpoorm=sum(sum(quitbirthm(bpoor>0)))/sum(sum(childborn(bpoor>0)));
+
+pquitbrichf=sum(sum(quitbirthf(brich>0)))/sum(sum(childborn(brich>0)));
+pquitmrichf=sum(sum(quitbirthf(mrich>0)))/sum(sum(childborn(mrich>0)));
+pquitfrichf=sum(sum(quitbirthf(frich>0)))/sum(sum(childborn(frich>0)));
+pquitmidf=sum(sum(quitbirthf(mid>0)))/sum(sum(childborn(mid>0)));
+pquitbpoorf=sum(sum(quitbirthf(bpoor>0)))/sum(sum(childborn(bpoor>0)));
+
+
+%Leaving durations
 
 
 

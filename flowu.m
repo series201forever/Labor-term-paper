@@ -9,16 +9,16 @@ function [flowu] = flowu(ucurve, vfir, vsec, cint, cslope, cageint, cageslope,..
 % t is age
 
 if dmt == 1 && dft == 1 && nt > 0
-  flowu = ((wm + wf + y)^(1 - ucurve)) / (1 - ucurve) + ...
-          vfir * nt - vsec * nt^2 - ...
+  flowu = ((wm + wf + y).^(1 - ucurve)) / (1 - ucurve) + ...
+          vfir .* nt - vsec .* nt^2 - ...
           max(0, cint + cageint - cslope .* at - cageslope .* at .* t);
 elseif dmt == 1 && dft == 1 && nt == 0
-  flowu = ((wm + wf + y)^(1 - ucurve)) / (1 - ucurve) + vfir * nt - vsec * nt^2;
+  flowu = ((wm + wf + y).^(1 - ucurve)) ./ (1 - ucurve) + vfir .* nt - vsec .* nt^2;
 elseif dmt == 1 && dft == 0
-  flowu = ((wm + y)^(1 - ucurve)) / (1 - ucurve) + vfir * nt - vsec * nt^2;
+  flowu = ((wm + y).^(1 - ucurve)) ./ (1 - ucurve) + vfir .* nt - vsec .* nt^2;
 elseif dmt == 0 && dft == 1
-  flowu = ((wf + y)^(1 - ucurve)) / (1 - ucurve) + vfir * nt - vsec * nt^2;
+  flowu = ((wf + y).^(1 - ucurve)) ./ (1 - ucurve) + vfir .* nt - vsec .* nt^2;
 else
-  flowu = (y^(1 - ucurve)) / (1 - ucurve) + vfir * nt - vsec * nt^2;
+  flowu = (y^(1 - ucurve)) ./ (1 - ucurve) + vfir .* nt - vsec .* nt^2;
 end
 
