@@ -3,7 +3,7 @@ rng(278);
 
 % Consumption utility is u(wm + wf) = (wm + wf)^(1 - ucurve) / (1 - ucurve)
 % Utility from child     v(nt)      = vfir * nt - vsec * nt^2
-% Childcare cost         c_t(a_t)   = -max(0, cint - cslope * at)
+% Childcare cost         c_t(a_t)   = -max(0, cint + cageint - cslope * at - cageslope * at * t)
 % Parameters are         para       = [ucurve, vcurve, cint, cslope]
 
 
@@ -719,8 +719,8 @@ simstate = zeros(nsim,period);
 % Calculate initial period
 % Initial arrival rate set higher so that we have more employed young
 % workers
-initofferm = reshape(binornd(1,0.3,nsim,1),nsim,1);
-initofferf = reshape(binornd(1,0.3,nsim,1),nsim,1);
+initofferm = reshape(binornd(1,0.8,nsim,1),nsim,1);
+initofferf = reshape(binornd(1,0.7,nsim,1),nsim,1);
 
 % Set initial working status and state
 for i = 1:nsim
@@ -1105,13 +1105,17 @@ empf(simwork==1|simwork==3)=1;
 empratem=sum(empm,1)/nsim;
 empratef=sum(empf,1)/nsim;
 
-%Number of quitting
+%Number of transitions
 eetoeu=zeros(nsim,period);
 eetoue=zeros(nsim,period);
 uetouu=zeros(nsim,period);
 eutouu=zeros(nsim,period);
 eetouu=zeros(nsim,period);
-
+uutoeu=zeros(nsim,period);
+uutoue=zeros(nsim,period);
+uetoee=zeros(nsim,period);
+eutoee=zeros(nsim,period);
+uutoee=zeros(nsim,period);
 
 for i=1:nsim
     for t=2:period
@@ -1125,39 +1129,111 @@ for i=1:nsim
         eutouu(i,t)=1;
         elseif simwork(i,t-1)==3 && simwork(i,t)==4
         uetouu(i,t)=1;  
+        elseif simwork(i,t-1)==4 && simwork(i,t)==3
+        uutoue(i,t)=1;
+        elseif simwork(i,t-1)==4 && simwork(i,t)==2
+        uutoeu(i,t)=1;
+        elseif simwork(i,t-1)==3 && simwork(i,t)==1
+        uetoee(i,t)=1;  
+        elseif simwork(i,t-1)==2 && simwork(i,t)==1
+        eutoee(i,t)=1;
+        elseif simwork(i,t-1)==4 && simwork(i,t)==1
+        uutoee(i,t)=1;  
         end
     end
 end
 
-%Quitting probability
+%Transition probability
 pdestm=sum(sum(eutouu))/(numel(simwork(simwork==2)));
 pdestf=sum(sum(uetouu))/(numel(simwork(simwork==3)));
 pdestmf=sum(sum(eetouu))/(numel(simwork(simwork==1)));
 pquitm=sum(sum(eetoue))/(numel(simwork(simwork==1)));
 pquitf=sum(sum(eetoeu))/(numel(simwork(simwork==1)));
 
+parrivem=sum(sum(uutoeu+uetoee))/(numel(simwork(simwork==4|simwork==3)));
+parrivef=sum(sum(uutoue+eutoee))/(numel(simwork(simwork==4|simwork==2)));
+parrivemf=sum(sum(uutoee))/(numel(simwork(simwork==4)));
 %%
 %%%%%%%%%%
 % Things related to child
 %%%%%%%%%%
+%Identifier of income subgroup
+brich=zeros(nsim,period);
+mrich=zeros(nsim,period);
+frich=zeros(nsim,period);
+mid=zeros(nsim,period);
+bpoor=zeros(nsim,period);
+brich(simwm>1/2*numel(wm)&simwf>1/2*numel(wf)&simoffer==1)=1;
+mrich(simwm>1/2*numel(wm)&simwf<=1/2*numel(wf)&simoffer==1)=1;
+frich(simwm<1/2*numel(wm)&simwf>1/2*numel(wf)&simoffer==1)=1;
+mid(simwm<=3/2*numel(wm)&simwm>=2/3*numel(wm)&simwf<=3/2*numel(wf)&simwf>=2/3*numel(wf)&simoffer==1)=1;
+bpoor(simwm<1/2*numel(wm)&simwf<1/2*numel(wf)&simoffer==1)=1;
 
-%Employment rate conditional on number of kids
+
+% Employment rate conditional on number of kids/kids age and parent's age
+% Empmkid & Empfkid = number of kids*parents age matrix
+% Empmkidage & Empfkidage = age of youngest kids * parents age matrix
 empmkid=zeros(numel(nt),period);
 empfkid=zeros(numel(nt),period);
-for n = 1:6
+empmkidage=zeros(numel(at),period);
+empfkidage=zeros(numel(at),period);
+for n = 1:(numel(nt)+1)
 aux=zeros(nsim,period);
 aux((simwork==1|simwork==2)&simnkids==(n-1))=1;
 aux2=zeros(nsim,period);
 aux2((simwork==1|simwork==3)&simnkids==(n-1))=1;
-empmkid(n,:)=sum(aux,1)/numel(simnkids(simnkids==(n-1)));
-empfkid(n,:)=sum(aux2,1)/numel(simnkids(simnkids==(n-1)));
+aux3=zeros(nsim,period);
+aux3(simnkids==(n-1))=1;
+empmkid(n,:)=sum(aux,1)./max(1,sum(aux3,1));
+empfkid(n,:)=sum(aux2,1)./max(1,sum(aux3,1));
 end
+
+clear aux aux2
+
+for n = 1:numel(at)
+aux=zeros(nsim,period);
+aux((simwork==1|simwork==2)&simat==n&simnkids>0)=1;
+aux2=zeros(nsim,period);
+aux2((simwork==1|simwork==3)&simat==n&simnkids>0)=1;
+aux3=zeros(nsim,period);
+aux3(simat==n&simnkids>0)=1;
+empmkidage(n,:)=sum(aux,1)./sum(aux3,1);
+empfkidage(n,:)=sum(aux2,1)./sum(aux3,1);
+end
+
+clear aux aux2
+
+
+%Identifier of childbirth
+childborn=zeros(nsim,period);
+
+for i=1:nsim
+    for t=2:period
+        if simnkids(i,t-1)<simnkids(i,t)
+        childborn(i,t)=1;
+        end     
+    end
+end
+
+
+%Childbirth rate conditional on age
+birthrateage=sum(childborn(:,:),1)./nsim;
+
+%Childbirth rate conditional on family income
+birthratebrich=sum(sum(childborn(brich>0)))/sum(sum(brich));
+birthratemid=sum(sum(childborn(mid>0)))/sum(sum(mid));
+birthratebpoor=sum(sum(childborn(bpoor>0)))/sum(sum(bpoor));
+
+
+%Number of children at age 30
+histnkids30=hist(simnkids(:,10));
+%Number of children at age 40
+histnkids40=hist(simnkids(:,20));
 
 %Number of quitting together with giving a birth
 quitbirthm=zeros(nsim,period);
 quitbirthf=zeros(nsim,period);
-%Number of child born at each age
-childborn=zeros(nsim,period);
+birthworkhh=zeros(nsim,period);
 
 for i=1:nsim
     for t=2:period
@@ -1167,26 +1243,26 @@ for i=1:nsim
         quitbirthf(i,t)=1;
         end
         
-        if simnkids(i,t-1)<simnkids(i,t)
-        childborn(i,t)=1;
+        if simnkids(i,t-1)<simnkids(i,t) && simwork(i,t-1)==1
+        birthworkhh(i,t)=1;
         end
-        
     end
 end
-
-
-%Number of children at age 30
-histnkids30=hist(simnkids(:,10));
-%Number of children at age 40
-histnkids40=hist(simnkids(:,20));
-
 
 
 %Probability of quitting with birth = number of quitting / number of children
 pbquitm=sum(sum(quitbirthm))/sum(simnkids(:,period));
 pbquitf=sum(sum(quitbirthf))/sum(simnkids(:,period));
 
-%Probability of quitting with birth / per age
+%Probability of quitting with birth conditional on birth given by working
+%household
+pbquitmwork=sum(sum(quitbirthm))/sum(sum(birthworkhh));
+pbquitfwork=sum(sum(quitbirthf))/sum(sum(birthworkhh));
+
+%Ratio of birth given by working household
+ratiobirthwork=sum(sum(birthworkhh))/sum(simnkids(:,period));
+
+%Probability of quitting with birth conditional on parents' age
 pquitagem=zeros(period,1);
 pquitagef=zeros(period,1);
 for t=2:period
@@ -1194,20 +1270,10 @@ pquitagem(t)=sum(quitbirthm(:,t))/sum(childborn(:,t));
 pquitagef(t)=sum(quitbirthf(:,t))/sum(childborn(:,t));
 end
 
-%Probability of quitting with birth / per income (extreme cases)
-%Identifier of the subset
-brich=zeros(nsim,period);
-mrich=zeros(nsim,period);
-frich=zeros(nsim,period);
-mid=zeros(nsim,period);
-bpoor=zeros(nsim,period);
-brich(simwm>6&simwf>6&simoffer==1)=1;
-mrich(simwm>6&simwf<=4&simoffer==1)=1;
-frich(simwm<=4&simwf>6&simoffer==1)=1;
-mid(simwm<=6&simwm>=4&simwf<=6&simwf>=4&simoffer==1)=1;
-bpoor(simwm<4&simwf<4&simoffer==1)=1;
 
-%Take probability for those samples matched to the identifier
+
+
+%Probability of quitting conditional on family income
 pquitbrichm=sum(sum(quitbirthm(brich>0)))/sum(sum(childborn(brich>0)));
 pquitmrichm=sum(sum(quitbirthm(mrich>0)))/sum(sum(childborn(mrich>0)));
 pquitfrichm=sum(sum(quitbirthm(frich>0)))/sum(sum(childborn(frich>0)));
@@ -1220,9 +1286,89 @@ pquitfrichf=sum(sum(quitbirthf(frich>0)))/sum(sum(childborn(frich>0)));
 pquitmidf=sum(sum(quitbirthf(mid>0)))/sum(sum(childborn(mid>0)));
 pquitbpoorf=sum(sum(quitbirthf(bpoor>0)))/sum(sum(childborn(bpoor>0)));
 
+%No difference by construction.
 
-%Leaving durations
+%Leaving durations, conditional on childbirth quitting
+comebackf=zeros(nsim,period);
+comebackm=zeros(nsim,period);
+for i=1:nsim
+    for t=2:period
+        if simwork(i,t-1)==2&&simwork(i,t)==1
+            comebackf(i,t)=1;
+        elseif simwork(i,t-1)==3&&simwork(i,t)==1
+            comebackm(i,t)=1;
+        end
+    end
+end
 
+%This does not contain cases such as "female leave, male job destroyed, female come back,
+%male come back".
+
+%Childbirth leave durations
+quitdurm=zeros(nsim,1);
+quitdurf=zeros(nsim,1);
+quitwm=zeros(nsim,2);
+quitwf=zeros(nsim,2);
+
+for i=1:nsim
+    if sum(comebackm(i,:))>0&&sum(quitbirthm(i,:))==1
+        aux=find(quitbirthm(i,:));
+        aux2=aux:period;
+        aux3=min(intersect(find(comebackm(i,:)),aux2));
+        if isempty(aux3)==0
+        quitdurm(i,1)=aux3-aux;
+        quitwm(i,1)=simwm(i,aux);
+        quitwm(i,2)=simwm(i,aux3);
+        end
+    elseif sum(quitbirthm(i,:))>1
+        i %If one family experiences more than one child-quit, this doesn't work.
+    end
+    
+    if sum(comebackf(i,:))>0&&sum(quitbirthf(i,:))==1
+        aux=find(quitbirthf(i,:));
+        aux2=aux:period;
+        aux3=min(intersect(find(comebackf(i,:)),aux2));
+        if isempty(aux3)==0
+        quitdurf(i,1)=aux3-aux;
+        quitwf(i,1)=simwf(i,aux);
+        quitwf(i,2)=simwf(i,aux3);
+        end
+    elseif sum(quitbirthf(i,:))>1
+        i %If one family experiences more than one child-quit, this doesn't work.
+    end
+
+end
+
+meanquitdurm=mean(quitdurm(quitdurm>0));
+meanquitdurf=mean(quitdurf(quitdurf>0));
+varquitdurm=var(quitdurm(quitdurm>0));
+varquitdurf=var(quitdurf(quitdurf>0));
+
+%Histgram of durations
+histquitdurm=hist(quitdurm(quitdurm>0));
+histquitdurf=hist(quitdurf(quitdurf>0));
+
+%Wage difference
+wagedifm=quitwm(:,1)-quitwm(:,2);
+wagediff=quitwf(:,1)-quitwf(:,2);
+
+%Histgram of wage difference
+histwagedifm=hist(wagedifm(quitdurm>0));
+histwagediff=hist(wagediff(quitdurf>0));
+
+%Histgram of wage difference conditional on duration
+histwagedifmshort=hist(wagedifm(quitdurm>0&quitdurm<2));
+histwagedifmmid=hist(wagedifm(quitdurm<6&quitdurm>=2));
+histwagedifmlong=hist(wagedifm(quitdurm>=6));
+
+%Number of households that experience leave and coming back in the sample
+%period
+nhleavem=numel(quitdurm(quitdurm>0));
+nhleavef=numel(quitdurf(quitdurf>0));
+
+%Ratio of households experiencing coming back conditional on childquit
+ratioleavebackm=nhleavem/sum(sum(quitbirthm));
+ratioleavebackf=nhleavef/sum(sum(quitbirthf));
 
 
 %%
