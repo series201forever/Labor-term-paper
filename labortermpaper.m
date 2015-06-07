@@ -11,27 +11,28 @@ rng(278);
 
 % Set hypothetical para
 % Flow utility para
-ucurve = 0.3;
+ucurve = 0.6;
 vfir   = 4;
 vsec   = 0.5;
 cint   = 25;
 cslope = 5;    
-cageint   = -3;
-cageslope = 0.5;
+cageint   = -0.3;
+cageslope = 0.3;
+conskid=0.7;
 
 % Dynamic parameters, borrowed from Dey Flinn
 Beta    = 0.91;  % Capitalized to prevent confusion with beta function
 deltam  = 0.032;
 deltaf  = 0.05;
-lambdam = 0.3;
-lambdaf = 0.2;
-mum     = 2.8;
-muf     = 2.303;
-sigmam  = 0.139;
+lambdam = 0.4;
+lambdaf = 0.3;
+mum     = 2.83;
+muf     = 2.503;
+sigmam  = 0.14;
 sigmaf  = 0.135;
 
 %Child arrival probability
-Gamma = 0.1;  % Capitalized to prevent confusion with the gamma function
+Gamma = 0.09;  % Capitalized to prevent confusion with the gamma function
 
 %%
 % Set state space
@@ -39,16 +40,14 @@ Gamma = 0.1;  % Capitalized to prevent confusion with the gamma function
 % Set demographic (outside income)
 y = 0.5;
 
-%%%%%%%%%%
-% Set terminal value to be zero (for now).
-%%%%%%%%%%
-term = 0;
 
 % State space:
 % wm, wf: continuous, following log-normal. 
 % Discretize them into 10 points (for now)
-wm = linspace(5, 20, 10);
-wf = linspace(5, 20, 10);
+bot=5;
+top=20;
+wm = linspace(bot, top, 10);
+wf = linspace(bot, top, 10);
 
 % Number of children: up to 5. Child age up to 5 (for now, because at age 5 
 % c(at)=0.
@@ -87,6 +86,8 @@ simcint   = ones(sizestate, 1) * cint;
 simcslope = ones(sizestate, 1) * cslope;
 simcageint   = ones(sizestate, 1) * cageint;
 simcageslope   = ones(sizestate, 1) * cageslope;
+simconskid   = ones(sizestate, 1) * conskid;
+simBeta   = ones(sizestate, 1) * Beta;
 
 yy = ones(sizestate, 1) * y;
 
@@ -116,26 +117,41 @@ period = 20;
 t  = period;
 tt = ones(sizestate,1)*t;
 
+%Terminal period value as a continuation payoff terminal state
+termee =  arrayfun(@term, simucurve, simvfir, simvsec, simcint,...
+              simcslope, simcageint, simcageslope, simconskid, simBeta, wmstate, wfstate, ntstate,...
+              atstate, work, work, yy, tt);
+termeu = arrayfun(@term, simucurve, simvfir, simvsec, simcint,...
+             simcslope, simcageint, simcageslope, simconskid, simBeta, wmstate, wfstate, ntstate,...
+              atstate, work, nowork, yy, tt);
+termue = arrayfun(@term, simucurve, simvfir, simvsec, simcint,...
+            simcslope, simcageint, simcageslope, simconskid, simBeta, wmstate, wfstate, ntstate,...
+            atstate, nowork, work, yy, tt);
+termuu = arrayfun(@term, simucurve, simvfir, simvsec, simcint,...
+             simcslope, simcageint, simcageslope, simconskid, simBeta, wmstate, wfstate, ntstate,...
+              atstate, nowork, nowork, yy, tt);
+
+
 % Choice-based value functions corresponding to four cases.
 % Man work, woman work
-VeeT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
-                simcslope, simcageint, simcageslope, wmstate, wfstate, ntstate,...
-                atstate, work, work, yy, tt) + term;
+VeeT = arrayfun(@flowu_2, simucurve, simvfir, simvsec, simcint,...
+                simcslope, simcageint, simcageslope, simconskid, wmstate, wfstate, ntstate,...
+                atstate, work, work, yy, tt) + termee;
             
 % Man work, woman not
-VeuT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
-                simcslope, simcageint, simcageslope, wmstate, wfstate, ntstate,...
-                atstate, work, nowork, yy, tt) + term;      
+VeuT = arrayfun(@flowu_2, simucurve, simvfir, simvsec, simcint,...
+                simcslope, simcageint, simcageslope, simconskid, wmstate, wfstate, ntstate,...
+                atstate, work, nowork, yy, tt) + termeu;      
             
 % Man not, woman work
-VueT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
-                simcslope, simcageint, simcageslope, wmstate, wfstate, ntstate,...
-                atstate, nowork, work, yy, tt) + term;
+VueT = arrayfun(@flowu_2, simucurve, simvfir, simvsec, simcint,...
+                simcslope, simcageint, simcageslope, simconskid, wmstate, wfstate, ntstate,...
+                atstate, nowork, work, yy, tt) + termue;
             
 % Man not, woman not
-VuuT = arrayfun(@flowu, simucurve, simvfir, simvsec, simcint,...
-                simcslope, simcageint, simcageslope, wmstate, wfstate, ntstate,...
-                atstate, nowork, nowork, yy, tt) + term;
+VuuT = arrayfun(@flowu_2, simucurve, simvfir, simvsec, simcint,...
+                simcslope, simcageint, simcageslope, simconskid, wmstate, wfstate, ntstate,...
+                atstate, nowork, nowork, yy, tt) + termuu;
             
 
 %%%%%%%%%%%%%%%%
@@ -259,8 +275,8 @@ clear aux aux2 aux3 aux4 aux5
 
 % To compute Emax taking expectation over wage needed. 
 % Assume log-normal wage.
-distwm = lognpdf(wm,mum,sigmam);
-distwf = lognpdf(wf,muf,sigmaf);
+distwm = ((top-bot)/numel(wm))*lognpdf(wm,mum,sigmam);
+distwf = ((top-bot)/numel(wf))*lognpdf(wf,muf,sigmaf);
 
 
 % Note that the variable we are taking expectation over differs depending on
@@ -589,13 +605,13 @@ eq24=eq9;
 tt=ones(sizestate,1)*t;
 
 %State ue
-Vueup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,wmstate,wfstate,ntstate,atstate,nowork,work,yy,tt)+Beta*lambdam*(1-deltaf)*eq2+Beta*lambdam*deltaf*eq3+Beta*(1-lambdam)*deltaf*eq4+Beta*(1-lambdam)*Gamma*(1-deltaf)*eq5+Beta*(1-lambdam)*(1-Gamma)*(1-deltaf)*eq6;
+Vueup=arrayfun(@flowu_2,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,simconskid,wmstate,wfstate,ntstate,atstate,nowork,work,yy,tt)+Beta*lambdam*(1-deltaf)*eq2+Beta*lambdam*deltaf*eq3+Beta*(1-lambdam)*deltaf*eq4+Beta*(1-lambdam)*Gamma*(1-deltaf)*eq5+Beta*(1-lambdam)*(1-Gamma)*(1-deltaf)*eq6;
 %State ee
-Veeup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,wmstate,wfstate,ntstate,atstate,work,work,yy,tt)+Beta*deltam*(1-deltaf)*eq8+Beta*(1-deltam)*deltaf*eq9+Beta*deltam*deltaf*eq10+Beta*Gamma*(1-deltam)*(1-deltaf)*eq11+Beta*(1-Gamma)*(1-deltam)*(1-deltaf)*eq12;
+Veeup=arrayfun(@flowu_2,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,simconskid,wmstate,wfstate,ntstate,atstate,work,work,yy,tt)+Beta*deltam*(1-deltaf)*eq8+Beta*(1-deltam)*deltaf*eq9+Beta*deltam*deltaf*eq10+Beta*Gamma*(1-deltam)*(1-deltaf)*eq11+Beta*(1-Gamma)*(1-deltam)*(1-deltaf)*eq12;
 %State uu
-Vuuup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,wmstate,wfstate,ntstate,atstate,nowork,nowork,yy,tt)+Beta*lambdam*lambdaf*eq14+Beta*lambdam*(1-lambdaf)*eq15+Beta*(1-lambdam)*lambdaf*eq16+Beta*(1-lambdam)*(1-lambdaf)*Gamma*eq17+Beta*(1-lambdam)*(1-lambdaf)*(1-Gamma)*eq18;
+Vuuup=arrayfun(@flowu_2,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,simconskid,wmstate,wfstate,ntstate,atstate,nowork,nowork,yy,tt)+Beta*lambdam*lambdaf*eq14+Beta*lambdam*(1-lambdaf)*eq15+Beta*(1-lambdam)*lambdaf*eq16+Beta*(1-lambdam)*(1-lambdaf)*Gamma*eq17+Beta*(1-lambdam)*(1-lambdaf)*(1-Gamma)*eq18;
 %State eu
-Veuup=arrayfun(@flowu,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,wmstate,wfstate,ntstate,atstate,work,nowork,yy,tt)+Beta*lambdaf*(1-deltam)*eq20+Beta*lambdaf*deltam*eq21+Beta*(1-lambdaf)*deltam*eq22+Beta*(1-lambdaf)*(1-deltam)*Gamma*eq23+Beta*(1-lambdaf)*(1-deltam)*(1-Gamma)*eq24;
+Veuup=arrayfun(@flowu_2,simucurve,simvfir,simvsec,simcint,simcslope, simcageint, simcageslope,simconskid,wmstate,wfstate,ntstate,atstate,work,nowork,yy,tt)+Beta*lambdaf*(1-deltam)*eq20+Beta*lambdaf*deltam*eq21+Beta*(1-lambdaf)*deltam*eq22+Beta*(1-lambdaf)*(1-deltam)*Gamma*eq23+Beta*(1-lambdaf)*(1-deltam)*(1-Gamma)*eq24;
 
 
 %Everything is done for period t. Store them in the matrices created
@@ -672,6 +688,49 @@ clear aux aux2 aux3 aux4 aux5
 
 
 %%
+%Computation of reservation wage
+%Reservation wage of male function of (wf,nt,at,t) and wife's working status.
+%But I compute it for all 
+%(wm,wf,nt,at) to match size of state space. It has the same value for all
+%state sharing the same (wf,nt,at). Same for female.
+
+reswagemuu=zeros(sizestate,period);
+reswagemue=zeros(sizestate,period);
+
+for i=1:sizestate/numel(wm)
+    for t=1:period
+        reswagemuu((1+(i-1)*numel(wm)):(i*numel(wm)),t)=find(Pmmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==2,1,'first');
+        reswagemue((1+(i-1)*numel(wm)):(i*numel(wm)),t)=find(Pmfmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==1|Pmfmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==2,1,'first');
+    end
+end
+
+%For female re-ordering states required
+aux=[state,Pfmat,Pmfmat];
+aux2=sortrows(aux,[4,3,1]);
+aux3=aux2(:,5:(4+period));
+aux4=aux2(:,(5+period):(4+2*period));
+
+aux5=zeros(sizestate,period);
+aux6=zeros(sizestate,period);
+for i=1:sizestate/numel(wm)
+    for t=1:period
+        aux5((1+(i-1)*numel(wf)):(i*numel(wf)),t)=find(aux3((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first');
+        if isempty(find(aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==1|aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first'))==0
+        aux6((1+(i-1)*numel(wf)):(i*numel(wf)),t)=find(aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==1|aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first');
+        else aux6((1+(i-1)*numel(wf)):(i*numel(wf)),t)=0;
+        end
+    end
+end
+
+aux7=[state,aux5,aux6];
+aux8=sortrows(aux7,[4,3,2]);
+reswagefuu=aux8(:,5:(4+period));
+reswagefeu=aux8(:,(5+period):(4+2*period));
+
+
+
+
+%%
 % Simulation of 10000 individuals
 nsim = 10000;
 
@@ -710,6 +769,8 @@ simnkids = zeros(nsim,period);
 simat    = ones(nsim,period);
 simwm    = zeros(nsim,period);
 simwf    = zeros(nsim,period);
+simreswagem =zeros(nsim,period);
+simreswagef =zeros(nsim,period);
 
 %Just to align notation as before
 simstate = zeros(nsim,period);
@@ -774,6 +835,8 @@ for i = 1:nsim
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                    %Assign state value
                 simwork(i,t) = Pumat(simstate(i,t),t); %Working choice
+                simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                simreswagef(i,t) = reswagefuu(simstate(i,t),t);
             
             elseif simdestm(i,t)==1 %Only male job destroyed
                 simoffer(i,t) = 3;             % Only female offer
@@ -786,7 +849,8 @@ for i = 1:nsim
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                    
                 simwork(i,t) = Pfmat(simstate(i,t),t);
-
+                simreswagem(i,t) = reswagemue(simstate(i,t),t);
+                simreswagef(i,t) = simwf(i,t);
                 
             elseif simdestf(i,t)==1 % Only female job destroyed
                 simoffer(i,t) = 2;          %Only male offer
@@ -799,6 +863,8 @@ for i = 1:nsim
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                    
                 simwork(i,t) = Pmmat(simstate(i,t),t);
+                simreswagem(i,t) = simwm(i,t);
+                simreswagef(i,t) = reswagefeu(simstate(i,t),t);
                 
             elseif simchildarr(i,t)==1 %Child arrives
                 simoffer(i,t) = 1;         %Offer status remains the same.
@@ -814,6 +880,8 @@ for i = 1:nsim
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                        
                     simwork(i,t) = simwork(i,t-1); %Work status not changing
+                    simreswagem(i,t) = simwm(i,t);
+                    simreswagef(i,t) = simwf(i,t);
 
                 elseif Pbeemat(simstate(i,t-1),t)== 2
                     % If giving a birth,
@@ -824,6 +892,8 @@ for i = 1:nsim
                  simwork(i,t)=Pwbeemat(simstate(i,t-1),t); %Work choice involved.
                       %Choice based on state at t-1. This is how Pwbee is
                       %defined.
+                  simreswagem(i,t) = reswagemue(simstate(i,t),t);
+                  simreswagef(i,t) = reswagefeu(simstate(i,t),t);
               
                 end
                 
@@ -836,7 +906,8 @@ for i = 1:nsim
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 simwork(i,t) = simwork(i,t-1);
-                
+                simreswagem(i,t) = simwm(i,t);
+                simreswagef(i,t) = simwf(i,t);
             else
                 disp('error')
                 
@@ -855,6 +926,8 @@ for i = 1:nsim
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
+                 simreswagem(i,t) = reswagemue(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefeu(simstate(i,t),t);
 
                  
             elseif simofferf(i,t)==1 && simdestm(i,t)==1 %Female offer & male destroy
@@ -868,6 +941,8 @@ for i = 1:nsim
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pfmat(simstate(i,t),t); %Femal choose whether to work
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefuu(simstate(i,t),t);
                  
             elseif simofferf(i,t)==0 && simdestm(i,t)==1 %Male destroy
                  simoffer(i,t) = 4;    %No offer
@@ -880,6 +955,8 @@ for i = 1:nsim
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pumat(simstate(i,t),t); 
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefuu(simstate(i,t),t);
                  
             elseif   simchildarr(i,t)==1 %Child arrives
                 simoffer(i,t) = 2;         %Offer status remains the same.
@@ -895,6 +972,8 @@ for i = 1:nsim
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                        
                     simwork(i,t) = simwork(i,t-1); %Work status not changing
+                    simreswagem(i,t) = simwm(i,t);
+                   simreswagef(i,t) = reswagefeu(simstate(i,t),t);
 
                 elseif Pbeumat(simstate(i,t-1),t)== 2
                     % If giving a birth,
@@ -906,6 +985,8 @@ for i = 1:nsim
                  %involved. So simwork(i,t)=simwork(i,t-1) should work.
                  %Here I let them choose to check if the actually choose to
                  %stay (validity check).
+                 simreswagem(i,t) = simwm(i,t);
+                  simreswagef(i,t) = reswagefeu(simstate(i,t),t);
               
                 end
                 
@@ -918,6 +999,8 @@ for i = 1:nsim
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 simwork(i,t) = simwork(i,t-1);
+                simreswagem(i,t) = simwm(i,t);
+                simreswagef(i,t) = reswagefeu(simstate(i,t),t);
                 
             else
                 disp('error')
@@ -936,7 +1019,8 @@ for i = 1:nsim
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
-
+                 simreswagem(i,t) = reswagemue(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefeu(simstate(i,t),t);
                  
             elseif simofferm(i,t)==1 && simdestf(i,t)==1 %Male offer & Female destroy
                  simoffer(i,t) = 2;    %Only Male offer
@@ -949,6 +1033,9 @@ for i = 1:nsim
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pmmat(simstate(i,t),t); %Femal choose whether to work
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefuu(simstate(i,t),t);
+                 
                  
             elseif simofferm(i,t)==0 && simdestf(i,t)==1 %Female destroy
                  simoffer(i,t) = 4;    %No offer
@@ -961,6 +1048,8 @@ for i = 1:nsim
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pumat(simstate(i,t),t); 
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefuu(simstate(i,t),t);
                  
             elseif   simchildarr(i,t)==1 %Child arrives
                 simoffer(i,t) = 3;         %Offer status remains the same.
@@ -976,6 +1065,8 @@ for i = 1:nsim
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                        
                     simwork(i,t) = simwork(i,t-1); %Work status not changing
+                    simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                    simreswagef(i,t) = simwf(i,t);
 
                 elseif Pbuemat(simstate(i,t-1),t)== 2
                     % If giving a birth,
@@ -987,6 +1078,8 @@ for i = 1:nsim
                  %involved. So simwork(i,t)=simwork(i,t-1) should work.
                  %Here I let them choose to check if the actually choose to
                  %stay (validity check).
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = simwf(i,t);
               
                 end
                 
@@ -999,7 +1092,8 @@ for i = 1:nsim
                  simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 simwork(i,t) = simwork(i,t-1);
-                
+                simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                simreswagef(i,t) = simwf(i,t);
             else
                 disp('error')
             end
@@ -1017,7 +1111,8 @@ for i = 1:nsim
                
 
                  simwork(i,t) = Pmfmat(simstate(i,t),t); %Choose who to work
-
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefuu(simstate(i,t),t);
                  
             elseif simofferm(i,t)==1 && simofferf(i,t)==0 %Male offer
                  simoffer(i,t) = 2;    %Only Male offer
@@ -1030,6 +1125,8 @@ for i = 1:nsim
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pmmat(simstate(i,t),t); %Femal choose whether to work
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefuu(simstate(i,t),t);
                  
             elseif simofferm(i,t)==0 && simofferf(i,t)==1 %Female offer
                  simoffer(i,t) = 3;    %No offer
@@ -1042,6 +1139,8 @@ for i = 1:nsim
                 %State at evolves by one. Everything else stays the same.
 
                  simwork(i,t) = Pfmat(simstate(i,t),t); 
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefuu(simstate(i,t),t);
                  
             elseif   simchildarr(i,t)==1 %Child arrives
                 simoffer(i,t) = 4;         %Offer status remains the same.
@@ -1057,14 +1156,18 @@ for i = 1:nsim
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                        
                     simwork(i,t) = simwork(i,t-1); %Work status not changing
-
+                    simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                    simreswagef(i,t) = reswagefuu(simstate(i,t),t);
+                 
                 elseif Pbuumat(simstate(i,t-1),t)== 2
                     % If giving a birth,
                  simat(i,t) = 1; %at re-set to 1.
-                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 
                  simwork(i,t)=simwork(i,t-1);
+                 simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                 simreswagef(i,t) = reswagefuu(simstate(i,t),t);
               
                 end
                 
@@ -1074,9 +1177,11 @@ for i = 1:nsim
                 simwf(i,t) = simwofferf(i,t-1);  % Irrelevant
                 simnkids(i,t) = simnkids(i,t-1);
                 simat(i,t) = min(simat(i,t-1)+1,numel(at));
-                 simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
+                simstate(i,t) = (simat(i,t)-1)*numel(nt)*numel(wf)*numel(wm)+...
                   (simnkids(i,t))*numel(wf)*numel(wm)+(simwf(i,t)-1)*numel(wm)+simwm(i,t);
                 simwork(i,t) = simwork(i,t-1);
+                simreswagem(i,t) = reswagemuu(simstate(i,t),t);
+                simreswagef(i,t) = reswagefuu(simstate(i,t),t);
                 
             else
                 disp('error')
@@ -1163,11 +1268,11 @@ mrich=zeros(nsim,period);
 frich=zeros(nsim,period);
 mid=zeros(nsim,period);
 bpoor=zeros(nsim,period);
-brich(simwm>1/2*numel(wm)&simwf>1/2*numel(wf)&simoffer==1)=1;
-mrich(simwm>1/2*numel(wm)&simwf<=1/2*numel(wf)&simoffer==1)=1;
-frich(simwm<1/2*numel(wm)&simwf>1/2*numel(wf)&simoffer==1)=1;
-mid(simwm<=3/2*numel(wm)&simwm>=2/3*numel(wm)&simwf<=3/2*numel(wf)&simwf>=2/3*numel(wf)&simoffer==1)=1;
-bpoor(simwm<1/2*numel(wm)&simwf<1/2*numel(wf)&simoffer==1)=1;
+brich(simwm>1/2*numel(wm)&simwf>1/2*numel(wf)&simwork==1)=1;
+mrich(simwm>1/2*numel(wm)&simwf<=1/2*numel(wf)&simwork==1)=1;
+frich(simwm<1/2*numel(wm)&simwf>1/2*numel(wf)&simwork==1)=1;
+mid(simwm<=3/2*numel(wm)&simwm>=2/3*numel(wm)&simwf<=3/2*numel(wf)&simwf>=2/3*numel(wf)&simwork==1)=1;
+bpoor(simwm<1/2*numel(wm)&simwf<1/2*numel(wf)&simwork==1)=1;
 
 
 % Employment rate conditional on number of kids/kids age and parent's age
@@ -1177,7 +1282,7 @@ empmkid=zeros(numel(nt),period);
 empfkid=zeros(numel(nt),period);
 empmkidage=zeros(numel(at),period);
 empfkidage=zeros(numel(at),period);
-for n = 1:(numel(nt)+1)
+for n = 1:numel(nt)
 aux=zeros(nsim,period);
 aux((simwork==1|simwork==2)&simnkids==(n-1))=1;
 aux2=zeros(nsim,period);
@@ -1226,9 +1331,14 @@ birthratebpoor=sum(sum(childborn(bpoor>0)))/sum(sum(bpoor));
 
 
 %Number of children at age 30
-histnkids30=hist(simnkids(:,10));
+histnkids30=hist(simnkids(:,10)/nsim);
+
 %Number of children at age 40
-histnkids40=hist(simnkids(:,20));
+histnkids40=hist(simnkids(:,20)/nsim,5);
+
+
+meannkids40=mean(simnkids(:,20));
+varnkids40=var(simnkids(:,20));
 
 %Number of quitting together with giving a birth
 quitbirthm=zeros(nsim,period);
@@ -1270,6 +1380,7 @@ pquitagem(t)=sum(quitbirthm(:,t))/sum(childborn(:,t));
 pquitagef(t)=sum(quitbirthf(:,t))/sum(childborn(:,t));
 end
 
+plotquitagef=plot([pquitagef,pquitagem]);
 
 
 
@@ -1349,8 +1460,8 @@ histquitdurm=hist(quitdurm(quitdurm>0));
 histquitdurf=hist(quitdurf(quitdurf>0));
 
 %Wage difference
-wagedifm=quitwm(:,1)-quitwm(:,2);
-wagediff=quitwf(:,1)-quitwf(:,2);
+wagedifm=quitwm(:,2)-quitwm(:,1);
+wagediff=quitwf(:,2)-quitwf(:,1);
 
 %Histgram of wage difference
 histwagedifm=hist(wagedifm(quitdurm>0));
@@ -1361,6 +1472,10 @@ histwagedifmshort=hist(wagedifm(quitdurm>0&quitdurm<2));
 histwagedifmmid=hist(wagedifm(quitdurm<6&quitdurm>=2));
 histwagedifmlong=hist(wagedifm(quitdurm>=6));
 
+histwagediffshort=hist(wagediff(quitdurf>0&quitdurf<2));
+histwagediffmid=hist(wagediff(quitdurf<6&quitdurf>=2));
+histwagedifflong=hist(wagediff(quitdurf>=6));
+
 %Number of households that experience leave and coming back in the sample
 %period
 nhleavem=numel(quitdurm(quitdurm>0));
@@ -1369,6 +1484,13 @@ nhleavef=numel(quitdurf(quitdurf>0));
 %Ratio of households experiencing coming back conditional on childquit
 ratioleavebackm=nhleavem/sum(sum(quitbirthm));
 ratioleavebackf=nhleavef/sum(sum(quitbirthf));
+
+
+
+%%
+%Preparation for SMM
+
+
 
 
 %%
