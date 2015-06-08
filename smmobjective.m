@@ -1,53 +1,41 @@
-clear all;
+function [ smmobjective ] = smmobjective(para,parafixed)
+
 rng(278);
 
-% Consumption utility is u(wm + wf) = (wm + wf)^(1 - ucurve) / (1 - ucurve)
-% Utility from child     v(nt)      = vfir * nt - vsec * nt^2
-% Childcare cost         c_t(a_t)   = -max(0, cint + cageint - cslope * at - cageslope * at * t)
-% Parameters are         para       = [ucurve, vcurve, cint, cslope]
+%Parameters
+ucurve = para(1);
+vfir   = para(2);
+vsec   = para(3);
+cint   = para(4);
+cslope = para(5);    
+cageint   = para(6);
+cageslope = para(7);
+conskid= para(8);
+mum     = para(9);
+muf     = para(10);
+sigmam  = para(11);
+sigmaf  = para(12);
+Gamma   = para(13);
+deltam  = parafixed(1);
+deltaf  = parafixed(2);
+lambdam = parafixed(3);
+lambdaf = parafixed(4);
+Beta    = parafixed(5);
 
 
-% Flow utility is stored in "flowu.m"
-
-% Set hypothetical para
-% Flow utility para
-ucurve = 0.6;
-vfir   = 4;
-vsec   = 0.5;
-cint   = 25;
-cslope = 5;    
-cageint   = -0.3;
-cageslope = 0.3;
-conskid=0.7;
-
-% Dynamic parameters, borrowed from Dey Flinn
-Beta    = 0.91;  % Capitalized to prevent confusion with beta function
-deltam  = 0.032;
-deltaf  = 0.05;
-lambdam = 0.4;
-lambdaf = 0.3;
-mum     = 2.83;
-muf     = 2.503;
-sigmam  = 0.14;
-sigmaf  = 0.135;
-
-%Child arrival probability
-Gamma = 0.09;  % Capitalized to prevent confusion with the gamma function
-
-%%
 % Set state space
 
 % Set demographic (outside income)
-y = 0.5;
+y = 0.5;  %ADJUST INDIVIDUALLY
 
 
 % State space:
 % wm, wf: continuous, following log-normal. 
 % Discretize them into 10 points (for now)
-bot=5;
-top=20;
-wm = linspace(bot, top, 10);
-wf = linspace(bot, top, 10);
+bot=5;    %ADJUST INDIVIDUALLY
+top=20;   %ADJUST INDIVIDUALLY
+wm = linspace(bot, top, 10);   %ADJUST INDIVIDUALLY
+wf = linspace(bot, top, 10);   %ADJUST INDIVIDUALLY
 
 % Number of children: up to 5. Child age up to 5 (for now, because at age 5 
 % c(at)=0.
@@ -58,11 +46,19 @@ wf = linspace(bot, top, 10);
 % Now: no matter what nt is, at evolves in the same way, but if nt=0 then at
 % does not show up in utility.
 % This makes the evolution of state space simpler.
-nt = 0:5;
-at = 1:5;
+nt = 0:5;  %ADJUST INDIVIDUALLY
+at = 1:5;  %ADJUST INDIVIDUALLY
 
-%%
-% The size of the state space is 10 * 10 * 6 * 5 = 3000. 
+%DP periods
+period = 20; %ADJUST INDIVIDUALLY
+
+%%%%%%%
+% In conducting SMM, adjust state space (y,bot,top,wm,wf,nt,at) size etc on
+% this function.
+%%%%%%%Preparation done
+
+
+
 % Make it a one-dimensional vector.
 [aux1, aux2, aux3, aux4] = ndgrid(wm, wf, nt, at);
 state        = [aux1(:), aux2(:), aux3(:), aux4(:)];
@@ -76,8 +72,6 @@ sizestate    = numel(state(:, 1));
 clear aux1 aux2 aux3 aux4
 
 
-
-%%
 % To use arrayfun later, make parameters 3000*1 dimensional object as well.
 simucurve = ones(sizestate, 1) * ucurve;
 simvfir   = ones(sizestate, 1) * vfir;
@@ -97,15 +91,12 @@ nowork = zeros(sizestate, 1);
 
 % Now all the inputs to the function "flowu" are set as 3000*1 vectors.
 
-%%
+
 %%%%%%%%%%
 % From here, I denote "choice-based value functions" as Vee,Veu,Vue,Vuu.
 % These are functions of state space AND CHOICES.
 % I denote "value functions" as Vmf, Vm, Vf, Vu. These are functions only
 % of state space.
-
-% Solve DP for 20 periods. 
-period = 20;
 
 % To start backward induction, we need to have utility corresponding to four
 % choices (male/female work/not work) at the terminal period.
@@ -671,69 +662,31 @@ end
 % I noticed that I need Policy at period 1, so let me calculate it here in
 % addition.
 aux       = [Veemat(:,1),Veumat(:,1),Vuemat(:,1),Vuumat(:,1)];
-[Vmfmat(:,1),Pmfmat(:,1)] = max(aux,[],2);
+[~,Pmfmat(:,1)] = max(aux,[],2);
 
 aux2      = [Veumat(:,1),Vuumat(:,1)];
-[Vmmat(:,1),aux4] = max(aux2,[],2);
+[~,aux4] = max(aux2,[],2);
 Pmmat(:,1) = 2*aux4;
 
 aux3      = [Vuemat(:,1),Vuumat(:,1)];
-[Vfmat(:,1), aux5] = max(aux3,[],2);
+[~, aux5] = max(aux3,[],2);
 Pfmat(:,1) = 2+aux5;
 
-Vumat(:,1) = Vuumat(:,1);
+%Vumat(:,1) = Vuumat(:,1);
 Pumat(:,1) = 4*ones(sizestate,1);
 
 clear aux aux2 aux3 aux4 aux5
 
 
-%%
-%Computation of reservation wage
-%Reservation wage of male function of (wf,nt,at,t) and wife's working status.
-%But I compute it for all 
-%(wm,wf,nt,at) to match size of state space. It has the same value for all
-%state sharing the same (wf,nt,at). Same for female.
 
-reswagemuu=zeros(sizestate,period);
-reswagemue=zeros(sizestate,period);
+%%%%%
 
-for i=1:sizestate/numel(wm)
-    for t=1:period
-        reswagemuu((1+(i-1)*numel(wm)):(i*numel(wm)),t)=find(Pmmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==2,1,'first');
-        reswagemue((1+(i-1)*numel(wm)):(i*numel(wm)),t)=find(Pmfmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==1|Pmfmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==2,1,'first');
-    end
-end
+%DP solved. Calculate moments by simulation.
 
-%For female re-ordering states required
-aux=[state,Pfmat,Pmfmat];
-aux2=sortrows(aux,[4,3,1]);
-aux3=aux2(:,5:(4+period));
-aux4=aux2(:,(5+period):(4+2*period));
+%%%%%
 
-aux5=zeros(sizestate,period);
-aux6=zeros(sizestate,period);
-for i=1:sizestate/numel(wm)
-    for t=1:period
-        aux5((1+(i-1)*numel(wf)):(i*numel(wf)),t)=find(aux3((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first');
-        if isempty(find(aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==1|aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first'))==0
-        aux6((1+(i-1)*numel(wf)):(i*numel(wf)),t)=find(aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==1|aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first');
-        else aux6((1+(i-1)*numel(wf)):(i*numel(wf)),t)=0;
-        end
-    end
-end
-
-aux7=[state,aux5,aux6];
-aux8=sortrows(aux7,[4,3,2]);
-reswagefuu=aux8(:,5:(4+period));
-reswagefeu=aux8(:,(5+period):(4+2*period));
-
-
-
-
-%%
 % Simulation of 10000 individuals
-nsim = 10000;
-
+nsim = 5000;
 
 % Draw shocks: job arrival, wage offer, job destruction (for both spouses)
 % and child arrival per period. In total, number of period * 7 shocks.
@@ -747,11 +700,9 @@ simofferf = reshape(binornd(1,lambdaf,period*nsim,1),nsim,period);
 % Generate random indeces 
 simwofferm = reshape(randi(10,period*nsim,1),nsim,period);
 % Pick elements of wm with corresponding indeces
-simwagemvalue = wm(simwofferm);
 
 rng(21890);
 simwofferf = reshape(randi(10,period*nsim,1),nsim,period);
-simwagefvalue = wf(simwofferf);
 
 %Job destruction
 simdestm = reshape(binornd(1,deltam,period*nsim,1),nsim,period);
@@ -775,7 +726,21 @@ simreswagef =zeros(nsim,period);
 %Just to align notation as before
 simstate = zeros(nsim,period);
 
-%For each iteration, seven variables to update.
+
+%Things used in the next section
+quitbirthm=zeros(nsim,period);
+quitbirthf=zeros(nsim,period);
+comebackf=zeros(nsim,period);
+comebackm=zeros(nsim,period);
+quitdurm=zeros(nsim,8);
+quitdurf=zeros(nsim,8);
+quitagem=zeros(nsim,8);
+quitagef=zeros(nsim,8);
+wagedifm=zeros(nsim,16);
+wagediff=zeros(nsim,16);
+
+%For each iteration, seven variables to update.+things used in the next
+%section.
 
 % Calculate initial period
 % Initial arrival rate set higher so that we have more employed young
@@ -1187,276 +1152,22 @@ for i = 1:nsim
                 disp('error')
             end
         end
-    end
-end
-
         
-%%            
-%%%%%%%%%%%%
-%Summary statistics
-%%%%%%%%%%%%
-
-
-%%%%%%%%%%%%
-% Things related to labor market status
-%%%%%%%%%%%%
-
-%Employment rate, by age
-empm=zeros(nsim,period);
-empm(simwork==1|simwork==2)=1;
-empf=zeros(nsim,period);
-empf(simwork==1|simwork==3)=1;
-
-empratem=sum(empm,1)/nsim;
-empratef=sum(empf,1)/nsim;
-
-%Number of transitions
-eetoeu=zeros(nsim,period);
-eetoue=zeros(nsim,period);
-uetouu=zeros(nsim,period);
-eutouu=zeros(nsim,period);
-eetouu=zeros(nsim,period);
-uutoeu=zeros(nsim,period);
-uutoue=zeros(nsim,period);
-uetoee=zeros(nsim,period);
-eutoee=zeros(nsim,period);
-uutoee=zeros(nsim,period);
-
-for i=1:nsim
-    for t=2:period
-        if simwork(i,t-1)==1 && simwork(i,t)==3
-        eetoue(i,t)=1;
-        elseif simwork(i,t-1)==1 && simwork(i,t)==2
-        eetoeu(i,t)=1;
-        elseif simwork(i,t-1)==1 && simwork(i,t)==4
-        eetouu(i,t)=1;  
-        elseif simwork(i,t-1)==2 && simwork(i,t)==4
-        eutouu(i,t)=1;
-        elseif simwork(i,t-1)==3 && simwork(i,t)==4
-        uetouu(i,t)=1;  
-        elseif simwork(i,t-1)==4 && simwork(i,t)==3
-        uutoue(i,t)=1;
-        elseif simwork(i,t-1)==4 && simwork(i,t)==2
-        uutoeu(i,t)=1;
-        elseif simwork(i,t-1)==3 && simwork(i,t)==1
-        uetoee(i,t)=1;  
-        elseif simwork(i,t-1)==2 && simwork(i,t)==1
-        eutoee(i,t)=1;
-        elseif simwork(i,t-1)==4 && simwork(i,t)==1
-        uutoee(i,t)=1;  
-        end
-    end
-end
-
-%Transition probability
-pdestm=sum(sum(eutouu))/(numel(simwork(simwork==2)));
-pdestf=sum(sum(uetouu))/(numel(simwork(simwork==3)));
-pdestmf=sum(sum(eetouu))/(numel(simwork(simwork==1)));
-pquitm=sum(sum(eetoue))/(numel(simwork(simwork==1)));
-pquitf=sum(sum(eetoeu))/(numel(simwork(simwork==1)));
-
-parrivem=sum(sum(uutoeu+uetoee))/(numel(simwork(simwork==4|simwork==3)));
-parrivef=sum(sum(uutoue+eutoee))/(numel(simwork(simwork==4|simwork==2)));
-parrivemf=sum(sum(uutoee))/(numel(simwork(simwork==4)));
-%%
-%%%%%%%%%%
-% Things related to child
-%%%%%%%%%%
-%Identifier of income subgroup
-brich=zeros(nsim,period);
-mrich=zeros(nsim,period);
-frich=zeros(nsim,period);
-mid=zeros(nsim,period);
-bpoor=zeros(nsim,period);
-brich(simwm>1/2*numel(wm)&simwf>1/2*numel(wf)&simwork==1)=1;
-mrich(simwm>1/2*numel(wm)&simwf<=1/2*numel(wf)&simwork==1)=1;
-frich(simwm<1/2*numel(wm)&simwf>1/2*numel(wf)&simwork==1)=1;
-mid(simwm<=3/2*numel(wm)&simwm>=2/3*numel(wm)&simwf<=3/2*numel(wf)&simwf>=2/3*numel(wf)&simwork==1)=1;
-bpoor(simwm<1/2*numel(wm)&simwf<1/2*numel(wf)&simwork==1)=1;
-
-
-% Employment rate and wage distribution conditional on number of kids/kids age and parent's age
-
-%number of kids*parents age matrix
-empmkid=zeros(numel(nt),period);
-empfkid=zeros(numel(nt),period);
-meanwagemkid=zeros(numel(nt),period);
-meanwagefkid=zeros(numel(nt),period);
-varwagemkid=zeros(numel(nt),period);
-varwagefkid=zeros(numel(nt),period);
-
-%age of youngest kids * parents age matrix
-empmkidage=zeros(numel(at),period);
-empfkidage=zeros(numel(at),period);
-meanwagemkidage=zeros(numel(at),period);
-meanwagefkidage=zeros(numel(at),period);
-varwagemkidage=zeros(numel(at),period);
-varwagefkidage=zeros(numel(at),period);
-
-for n = 1:numel(nt)
-%Employment rate conditional on number of kids
-aux=zeros(nsim,period);
-aux((simwork==1|simwork==2)&simnkids==(n-1))=1;
-aux2=zeros(nsim,period);
-aux2((simwork==1|simwork==3)&simnkids==(n-1))=1;
-aux3=zeros(nsim,period);
-aux3(simnkids==(n-1))=1;
-empmkid(n,:)=sum(aux,1)./max(1,sum(aux3,1));
-empfkid(n,:)=sum(aux2,1)./max(1,sum(aux3,1));
-%Wage distribution conditional on number of kids
-aux4=zeros(nsim,period);
-aux4((simwork==1|simwork==2)&simnkids==(n-1))=simwm((simwork==1|simwork==2)&simnkids==(n-1));
-aux5=zeros(nsim,period);
-aux5((simwork==1|simwork==3)&simnkids==(n-1))=simwf((simwork==1|simwork==3)&simnkids==(n-1));
-for t=1:period
-meanwagemkid(n,t)=mean(wm(aux4(aux4(:,t)>0,t)));
-varwagemkid(n,t)=var(wm(aux4(aux4(:,t)>0,t)));
-meanwagefkid(n,t)=mean(wf(aux5(aux5(:,t)>0,t)));
-varwagefkid(n,t)=var(wf(aux5(aux5(:,t)>0,t)));
-end
-end
-
-clear aux aux2 aux3 aux4 aux5
-
-for n = 1:numel(at)
-%Employment rate conditional on age of kids
-aux=zeros(nsim,period);
-aux((simwork==1|simwork==2)&simat==n&simnkids>0)=1;
-aux2=zeros(nsim,period);
-aux2((simwork==1|simwork==3)&simat==n&simnkids>0)=1;
-aux3=zeros(nsim,period);
-aux3(simat==n&simnkids>0)=1;
-empmkidage(n,:)=sum(aux,1)./sum(aux3,1);
-empfkidage(n,:)=sum(aux2,1)./sum(aux3,1);
-%Wage distribution conditional on age of kids
-aux4=zeros(nsim,period);
-aux4((simwork==1|simwork==2)&simat==n&simnkids>0)=simwm((simwork==1|simwork==2)&simat==n&simnkids>0);
-aux5=zeros(nsim,period);
-aux5((simwork==1|simwork==3)&simat==n&simnkids>0)=simwf((simwork==1|simwork==3)&simat==n&simnkids>0);
-for t=1:period
-meanwagemkidage(n,t)=mean(wm(aux4(aux4(:,t)>0,t)));
-varwagemkidage(n,t)=var(wm(aux4(aux4(:,t)>0,t)));
-meanwagefkidage(n,t)=mean(wf(aux5(aux5(:,t)>0,t)));
-varwagefkidage(n,t)=var(wf(aux5(aux5(:,t)>0,t)));
-end
-end
-
-clear aux aux2 aux3 aux4 aux5
-
-
-%Identifier of childbirth
-childborn=zeros(nsim,period);
-
-for i=1:nsim
-    for t=2:period
-        if simnkids(i,t-1)<simnkids(i,t)
-        childborn(i,t)=1;
-        end     
-    end
-end
-
-
-%Childbirth rate conditional on age
-birthrateage=sum(childborn(:,:),1)./nsim;
-
-%Childbirth rate conditional on family income
-birthratebrich=sum(sum(childborn(brich>0)))/sum(sum(brich));
-birthratemid=sum(sum(childborn(mid>0)))/sum(sum(mid));
-birthratebpoor=sum(sum(childborn(bpoor>0)))/sum(sum(bpoor));
-
-
-%Number of children at age 30
-histnkids30=hist(simnkids(:,10)/nsim);
-
-%Number of children at age 40
-histnkids40=hist(simnkids(:,20)/nsim,5);
-
-
-meannkids40=mean(simnkids(:,20));
-varnkids40=var(simnkids(:,20));
-
-%Number of quitting together with giving a birth
-quitbirthm=zeros(nsim,period);
-quitbirthf=zeros(nsim,period);
-birthworkhh=zeros(nsim,period);
-
-for i=1:nsim
-    for t=2:period
+        %Things used in the next section
         if simnkids(i,t-1)<simnkids(i,t) && simwork(i,t-1)==1 && simwork(i,t)==3
-        quitbirthm(i,t)=1;
+            quitbirthm(i,t)=1;
         elseif simnkids(i,t-1)<simnkids(i,t) && simwork(i,t-1)==1 && simwork(i,t)==2
-        quitbirthf(i,t)=1;
+            quitbirthf(i,t)=1;
         end
         
-        if simnkids(i,t-1)<simnkids(i,t) && simwork(i,t-1)==1
-        birthworkhh(i,t)=1;
-        end
-    end
-end
-
-
-%Probability of quitting with birth = number of quitting / number of children
-pbquitm=sum(sum(quitbirthm))/sum(simnkids(:,period));
-pbquitf=sum(sum(quitbirthf))/sum(simnkids(:,period));
-
-%Probability of quitting with birth conditional on birth given by working
-%household
-pbquitmwork=sum(sum(quitbirthm))/sum(sum(birthworkhh));
-pbquitfwork=sum(sum(quitbirthf))/sum(sum(birthworkhh));
-
-%Ratio of birth given by working household
-ratiobirthwork=sum(sum(birthworkhh))/sum(simnkids(:,period));
-
-%Probability of quitting with birth conditional on parents' age
-pquitagem=zeros(period,1);
-pquitagef=zeros(period,1);
-for t=2:period
-pquitagem(t)=sum(quitbirthm(:,t))/sum(childborn(:,t));
-pquitagef(t)=sum(quitbirthf(:,t))/sum(childborn(:,t));
-end
-
-plotquitagef=plot([pquitagef,pquitagem]);
-
-
-
-%Probability of quitting conditional on family income
-pquitbrichm=sum(sum(quitbirthm(brich>0)))/sum(sum(childborn(brich>0)));
-pquitmrichm=sum(sum(quitbirthm(mrich>0)))/sum(sum(childborn(mrich>0)));
-pquitfrichm=sum(sum(quitbirthm(frich>0)))/sum(sum(childborn(frich>0)));
-pquitmidm=sum(sum(quitbirthm(mid>0)))/sum(sum(childborn(mid>0)));
-pquitbpoorm=sum(sum(quitbirthm(bpoor>0)))/sum(sum(childborn(bpoor>0)));
-
-pquitbrichf=sum(sum(quitbirthf(brich>0)))/sum(sum(childborn(brich>0)));
-pquitmrichf=sum(sum(quitbirthf(mrich>0)))/sum(sum(childborn(mrich>0)));
-pquitfrichf=sum(sum(quitbirthf(frich>0)))/sum(sum(childborn(frich>0)));
-pquitmidf=sum(sum(quitbirthf(mid>0)))/sum(sum(childborn(mid>0)));
-pquitbpoorf=sum(sum(quitbirthf(bpoor>0)))/sum(sum(childborn(bpoor>0)));
-
-%No difference by construction.
-
-%Leaving durations, conditional on childbirth quitting
-comebackf=zeros(nsim,period);
-comebackm=zeros(nsim,period);
-for i=1:nsim
-    for t=2:period
         if (simwork(i,t-1)==2||simwork(i,t-1)==4)&&(simwork(i,t)==1||simwork(i,t)==3)
             comebackf(i,t)=1;
         elseif (simwork(i,t-1)==3||simwork(i,t-1)==4)&&(simwork(i,t)==1||simwork(i,t)==2)
             comebackm(i,t)=1;
         end
+        
     end
-end
-
-
-%Childbirth leave durations and wage difference
-quitdurm=zeros(nsim,8);
-quitdurf=zeros(nsim,8);
-quitagem=zeros(nsim,8);
-quitagef=zeros(nsim,8);
-wagedifm=zeros(nsim,16);
-wagediff=zeros(nsim,16);
-
-for i=1:nsim
+    
     if sum(comebackm(i,:))>0&&sum(quitbirthm(i,:))>0&&sum(quitbirthm(i,:))<9
         aux=find(quitbirthm(i,:));
         for j=1:numel(aux)
@@ -1498,75 +1209,156 @@ for i=1:nsim
 
 end
 
-meanquitdurm=zeros(period,1);
-meanquitdurf=zeros(period,1);
+        
+%%%%%       
 
-for t=1:period
-meanquitdurm(t)=mean(quitdurm(quitdurm>0&quitdurm<10&quitagem==t));
-meanquitdurf(t)=mean(quitdurf(quitdurf>0&quitdurf<10&quitagef==t));
+%Simulation done. Calculate moments.
+%"Conditional on age" means conditional on "young" (20-29) and "old"
+%(30-39).
+
+%%%%%
+
+%Observed moments
+birthrateyobs=
+birthrateoobs=
+
+kids0obs=0.2636;
+kids1obs=0.1889;
+kids2obs=0.2873;
+kids3obs=0.1567;
+kids4obs=0.0661;
+
+pquitmyobs=0.13532;
+pquitmoobs=0.06684;
+pquitfyobs=0.4862;
+pquitfoobs=0.426;
+
+meanquitdurmyobs=0.9173; %=47.7/52
+meanquitdurmoobs=0.7669; %=39.88/52
+meanquitdurfyobs=1.2906; %=67.11/52
+meanquitdurfoobs=1.0067; %=52.35/52
+
+empmkidageobs=[ , , , , ];
+empfkidageobs=[ , , , , ];
+
+meanwagemykidobs=[ , , ];
+meanwagefykidobs=[ , , ];
+meanwagemokidobs=[ , , ];
+meanwagefokidobs=[ , , ];
+
+varwagemykidobs=[ , , ];
+varwagefykidobs=[ , , ];
+varwagemokidobs=[ , , ];
+varwagefokidobs=[ , , ];
+
+%%%%%
+
+%(1) Childbirth rate conditional on age
+%(2) Probability of quitting conditional on childbirth, parents age and
+%gender
+
+
+%Childbirth rate
+birthratey=sum(simnkids(:,(period/2)))./(nsim*period/2);
+birthrateo=(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))))./(nsim*period/2);
+moment1=[birthratey,birthrateo]-[birthrateyobs,birthrateoobs];
+
+%Probability of quitting with birth conditional on parents' age and gender
+pquitmy=sum(sum(quitbirthm(:,1:(period/2))))/sum(simnkids(:,(period/2)));
+pquitmo=sum(sum(quitbirthm(:,(period/2+1):period)))/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))));
+pquitfy=sum(sum(quitbirthf(:,1:(period/2))))/sum(simnkids(:,(period/2)));
+pquitfo=sum(sum(quitbirthf(:,(period/2+1):period)))/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))));
+
+moment2=[pquitmy,pquitmo,pquitfy,pquitfo]-[pquitmyobs,pquitmoobs,pquitfyobs,pquitfoobs];
+
+
+
+
+% (3) Leaving durations, conditional on childbirth quitting
+meanquitdurmy=mean(quitdurm(quitdurm>0&quitdurm<10&quitagem<period/2));
+meanquitdurmo=mean(quitdurm(quitdurm>0&quitdurm<10&quitagem>=period/2));
+meanquitdurfy=mean(quitdurf(quitdurf>0&quitdurf<10&quitagef<period/2));
+meanquitdurfo=mean(quitdurf(quitdurf>0&quitdurf<10&quitagef>=period/2));
+
+moment3=[meanquitdurmy,meanquitdurmo,meanquitdurfy,meanquitdurfo]-[meanquitdurmyobs,meanquitdurmoobs,meanquitdurfyobs,meanquitdurfoobs];
+
+
+
+
+
+%(5) Employment rate conditional on child's age
+
+empmkidage=zeros(numel(at),1);
+empfkidage=zeros(numel(at),1);
+
+for n = 1:numel(at)
+aux=zeros(nsim,period);
+aux((simwork==1|simwork==2)&simat==n&simnkids>0)=1;
+aux2=zeros(nsim,period);
+aux2((simwork==1|simwork==3)&simat==n&simnkids>0)=1;
+aux3=zeros(nsim,period);
+aux3(simat==n&simnkids>0)=1;
+empmkidage(n)=sum(sum(aux))./sum(sum(aux3));
+empfkidage(n)=sum(sum(aux2))./sum(sum(aux3));
+end
+clear aux aux2 aux3
+
+moment5=[empmkidage.', empfkidage.']-[empmkidageobs,empfkidageobs];
+
+
+%(6) Wage distribution (mean and var) conditional on child's age and
+%parent's age
+%FOR THIS MOMENT CONDITION, DEFINE YOUNG<35, OLD>=35
+meanwagemykid=zeros(numel(at),1);
+meanwagefykid=zeros(numel(at),1);
+varwagemykid=zeros(numel(nt),1);
+varwagefykid=zeros(numel(nt),1);
+meanwagemokid=zeros(numel(nt),1);
+meanwagefokid=zeros(numel(nt),1);
+varwagemokid=zeros(numel(nt),1);
+varwagefokid=zeros(numel(nt),1);
+
+for n = 1:numel(nt)
+aux4=zeros(nsim,period);
+aux4((simwork==1|simwork==2)&simnkids==(n-1))=simwm((simwork==1|simwork==2)&simnkids==(n-1));
+aux5=aux4>0;
+aux6=zeros(nsim,period);
+aux6((simwork==1|simwork==3)&simnkids==(n-1))=simwf((simwork==1|simwork==3)&simnkids==(n-1));
+aux7=aux6>0;
+aux8=aux4(:,15:period);
+aux9=aux6(:,15:period);
+meanwagemykid(n)=mean(wm(aux4(aux5(:,1:14))));
+varwagemykid(n)=var(wm(aux4(aux5(:,1:14))));
+meanwagefykid(n)=mean(wf(aux6(aux7(:,1:14))));
+varwagefykid(n)=var(wf(aux6(aux7(:,1:14))));
+meanwagemokid(n)=mean(wm(aux8(aux5(:,15:period))));
+varwagemokid(n)=var(wm(aux8(aux5(:,15:period))));
+meanwagefokid(n)=mean(wf(aux9(aux7(:,15:period))));
+varwagefokid(n)=var(wf(aux9(aux7(:,15:period))));
 end
 
-%Histgram of durations within each agegroup
-histquitdurm=hist(quitdurm(quitdurm>0&quitdurm<10&quitagem==5));
-histquitdurf=hist(quitdurf(quitdurf>0&quitdurf<10&quitagef==5));
+clear aux4 aux5 aux6 aux7 aux8 aux9
+
+moment6=[meanwagemykid(1:3).',meanwagefykid(1:3).',meanwagemokid(1:3).',meanwagefokid(1:3).',...
+    varwagemykid(1:3).',varwagefykid(1:3).',varwagemokid(1:3).',varwagefokid(1:3).']...
+    -[meanwagemykidobs, meanwagefykidobs, meanwagemokidobs, meanwagefokidobs,...
+    varwagemykidobs, varwagefykidobs, varwagemokidobs, varwagefokidobs];
 
 
-%Histgram of wage difference
-histwagedifm=hist(wagedifm(quitdurm>0&quitdurm<10));
-histwagediff=hist(wagediff(quitdurf>0&quitdurf<10));
+% (7) Number of children at the end of career 
+kids0=numel(simnkids(:,20)==0)/nsim;
+kids1=numel(simnkids(:,20)==1)/nsim;
+kids2=numel(simnkids(:,20)==2)/nsim;
+kids3=numel(simnkids(:,20)==3)/nsim;
+kids4=numel(simnkids(:,20)==4)/nsim;
 
-%Histgram of wage difference conditional on duration
-histwagedifmshort=hist(wagedifm(quitdurm>0&quitdurm<2));
-histwagedifmmid=hist(wagedifm(quitdurm<6&quitdurm>=2));
-histwagedifmlong=hist(wagedifm(quitdurm>=6&quitdurm<10));
-
-histwagediffshort=hist(wagediff(quitdurf>0&quitdurf<2));
-histwagediffmid=hist(wagediff(quitdurf<6&quitdurf>=2));
-histwagedifflong=hist(wagediff(quitdurf>=6&quitdurm<10));
-
-%Number of households that experience leave and coming back in the sample
-%period
-nhleavem=numel(quitdurm(quitdurm>0));
-nhleavef=numel(quitdurf(quitdurf>0));
-
-%Ratio of households experiencing coming back conditional on childquit
-ratioleavebackm=nhleavem/sum(sum(quitbirthm));
-ratioleavebackf=nhleavef/sum(sum(quitbirthf));
+moment7=[kids0,kids1,kids2,kids3,kids4]-[kids0obs,kids1obs,kids2obs,kids3obs,kids4obs];
 
 
+%Define objective function
 
+setmoment = [moment1,moment2,moment3,moment5,moment6,moment7];
+smmobjective = setmoment*setmoment.';
 
-%%
-%Memos
-%(1)
-%I solved all the value/policy functions first, and then simulate the model
-%by drawing set of individuals.
-%To solve value/policy, I need to solve it at all possible states. In my
-%case, without on-the job search, for male "male being
-%unemployed, getting offer of wm, at the state on wf,nt,at, and choose whether
-%to accept". There are 3000 cases in total at which they make decision
-%(numel(wm)*numel(wf)*numel(nt)*numel(at)). Analogous for female (3000
-%cases).
+end
 
-%Now, the fact that I only have 3000 cases for each spouses is because we don't have
-%on the job search. With on the job search, it becomes "male either being
-%unemployed or working at wm, getting offer of wm' at the state on wf,nt,at,
-%and choose whether to accept". In this case, the number of cases become
-%30000.
-
-%Clearly, once I make grid of wm and wf finer, the number of state
-%increases by the rate of cube. Curse of dimensionality realizes.
-
-%(2)
-%Here job-choice at t is based on state at t. Child-choice and relevant
-%job-choice is based on state at t-1. This complicates things. i.e. If no
-%child arrival, update is first state, and then action. If child arrives,
-%first action update, and then state.
-
-%(3)
-%With period=yearly, it would be tough to match unemployment duration,
-%because unemployment typically takes far less than a year.
-%This implies yearly arrival rate might be really high, violating our
-%assumption of mutual exclusivity.
-%Even not, time aggregation bias is nonnegligible with high yearly arrival
-%rate.
