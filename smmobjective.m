@@ -31,11 +31,12 @@ y = 0.5;  %ADJUST INDIVIDUALLY
 
 % State space:
 % wm, wf: continuous, following log-normal. 
-% Discretize them into 10 points (for now)
-bot=5;    %ADJUST INDIVIDUALLY
-top=20;   %ADJUST INDIVIDUALLY
-wm = linspace(bot, top, 10);   %ADJUST INDIVIDUALLY
-wf = linspace(bot, top, 10);   %ADJUST INDIVIDUALLY
+botm=5;
+topm=30;
+botf=3;
+topf=25;
+wm = linspace(botm, topm, 70);
+wf = linspace(botf, topf, 70);
 
 % Number of children: up to 5. Child age up to 5 (for now, because at age 5 
 % c(at)=0.
@@ -695,14 +696,29 @@ nsim = 5000;
 simofferm = reshape(binornd(1,lambdam,period*nsim,1),nsim,period);
 simofferf = reshape(binornd(1,lambdaf,period*nsim,1),nsim,period);
 
-% Wage offer, ignoring normality for now. Wage taken from uniform over wm
-% and wf space.
+% Wage offer is drawn from log-normal.
 % Generate random indeces 
-simwofferm = reshape(randi(10,period*nsim,1),nsim,period);
-% Pick elements of wm with corresponding indeces
+aux = rand(nsim,period);
+aux2 = rand(nsim,period);
+aux3 = zeros(numel(wm),1);
+aux4 = zeros(numel(wf),1);
+for k=1:numel(wm)
+aux3(k)=sum(distwm(1:k));
+aux4(k)=sum(distwf(1:k));
+end
 
-rng(21890);
-simwofferf = reshape(randi(10,period*nsim,1),nsim,period);
+simwofferm=zeros(nsim,period);
+simwofferf=zeros(nsim,period);
+
+for i=1:nsim
+    for t=1:period
+    simwofferm(i,t) = find(aux3>aux(i,t),1,'first');
+    simwofferf(i,t) = find(aux4>aux2(i,t),1,'first');
+    end
+end
+
+
+clear aux aux2 aux3 aux4
 
 %Job destruction
 simdestm = reshape(binornd(1,deltam,period*nsim,1),nsim,period);

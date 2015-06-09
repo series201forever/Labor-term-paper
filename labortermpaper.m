@@ -1,5 +1,6 @@
 clear all;
 rng(278);
+tic
 
 % Consumption utility is u(wm + wf) = (wm + wf)^(1 - ucurve) / (1 - ucurve)
 % Utility from child     v(nt)      = vfir * nt - vsec * nt^2
@@ -21,13 +22,13 @@ cageslope = 0.3;
 conskid=0.7;
 
 % Dynamic parameters, borrowed from Dey Flinn
-Beta    = 0.91;  % Capitalized to prevent confusion with beta function
+Beta    = 0.98;  % Capitalized to prevent confusion with beta function
 deltam  = 0.032;
 deltaf  = 0.05;
 lambdam = 0.4;
 lambdaf = 0.3;
-mum     = 2.83;
-muf     = 2.503;
+mum     = 3.5;
+muf     = 3.103;
 sigmam  = 0.14;
 sigmaf  = 0.135;
 
@@ -43,11 +44,12 @@ y = 0.5;
 
 % State space:
 % wm, wf: continuous, following log-normal. 
-% Discretize them into 10 points (for now)
-bot=5;
-top=20;
-wm = linspace(bot, top, 10);
-wf = linspace(bot, top, 10);
+botm=10;
+topm=50;
+botf=8;
+topf=40;
+wm = linspace(botm, topm, 50);
+wf = linspace(botf, topf, 50);
 
 % Number of children: up to 5. Child age up to 5 (for now, because at age 5 
 % c(at)=0.
@@ -275,8 +277,8 @@ clear aux aux2 aux3 aux4 aux5
 
 % To compute Emax taking expectation over wage needed. 
 % Assume log-normal wage.
-distwm = ((top-bot)/numel(wm))*lognpdf(wm,mum,sigmam);
-distwf = ((top-bot)/numel(wf))*lognpdf(wf,muf,sigmaf);
+distwm = lognpdf(wm,mum,sigmam)/sum(lognpdf(wm,mum,sigmam));
+distwf = lognpdf(wf,muf,sigmaf)/sum(lognpdf(wf,muf,sigmaf));
 
 
 % Note that the variable we are taking expectation over differs depending on
@@ -699,8 +701,17 @@ reswagemue=zeros(sizestate,period);
 
 for i=1:sizestate/numel(wm)
     for t=1:period
+        if isempty(find(Pmmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==2,1,'first'))==0
         reswagemuu((1+(i-1)*numel(wm)):(i*numel(wm)),t)=find(Pmmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==2,1,'first');
+        else
+        reswagemuu((1+(i-1)*numel(wm)):(i*numel(wm)),t)=0;    
+        end
+        
+        if isempty(find(Pmfmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==1|Pmfmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==2,1,'first'))==0
         reswagemue((1+(i-1)*numel(wm)):(i*numel(wm)),t)=find(Pmfmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==1|Pmfmat((1+(i-1)*numel(wm)):(i*numel(wm)),t)==2,1,'first');
+        else
+        reswagemue((1+(i-1)*numel(wm)):(i*numel(wm)),t)=0;
+        end
     end
 end
 
@@ -714,10 +725,16 @@ aux5=zeros(sizestate,period);
 aux6=zeros(sizestate,period);
 for i=1:sizestate/numel(wm)
     for t=1:period
+        if isempty(find(aux3((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first'))==0
         aux5((1+(i-1)*numel(wf)):(i*numel(wf)),t)=find(aux3((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first');
+        else
+        aux5((1+(i-1)*numel(wf)):(i*numel(wf)),t)=0;
+        end
+        
         if isempty(find(aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==1|aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first'))==0
         aux6((1+(i-1)*numel(wf)):(i*numel(wf)),t)=find(aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==1|aux4((1+(i-1)*numel(wf)):(i*numel(wf)),t)==3,1,'first');
-        else aux6((1+(i-1)*numel(wf)):(i*numel(wf)),t)=0;
+        else
+        aux6((1+(i-1)*numel(wf)):(i*numel(wf)),t)=0;
         end
     end
 end
@@ -742,16 +759,31 @@ nsim = 10000;
 simofferm = reshape(binornd(1,lambdam,period*nsim,1),nsim,period);
 simofferf = reshape(binornd(1,lambdaf,period*nsim,1),nsim,period);
 
-% Wage offer, ignoring normality for now. Wage taken from uniform over wm
-% and wf space.
+% Wage offer is drawn from log-normal.
 % Generate random indeces 
-simwofferm = reshape(randi(10,period*nsim,1),nsim,period);
+aux = rand(nsim,period);
+aux2 = rand(nsim,period);
+aux3 = zeros(numel(wm),1);
+aux4 = zeros(numel(wf),1);
+for k=1:numel(wm)
+aux3(k)=sum(distwm(1:k));
+aux4(k)=sum(distwf(1:k));
+end
+
+simwofferm=zeros(nsim,period);
+simwofferf=zeros(nsim,period);
+
+for i=1:nsim
+    for t=1:period
+    simwofferm(i,t) = find(aux3>aux(i,t),1,'first');
+    simwofferf(i,t) = find(aux4>aux2(i,t),1,'first');
+    end
+end
 % Pick elements of wm with corresponding indeces
 simwagemvalue = wm(simwofferm);
-
-rng(21890);
-simwofferf = reshape(randi(10,period*nsim,1),nsim,period);
 simwagefvalue = wf(simwofferf);
+
+clear aux aux2 aux3 aux4
 
 %Job destruction
 simdestm = reshape(binornd(1,deltam,period*nsim,1),nsim,period);
@@ -1268,11 +1300,11 @@ mrich=zeros(nsim,period);
 frich=zeros(nsim,period);
 mid=zeros(nsim,period);
 bpoor=zeros(nsim,period);
-brich(simwm>1/2*numel(wm)&simwf>1/2*numel(wf)&simwork==1)=1;
-mrich(simwm>1/2*numel(wm)&simwf<=1/2*numel(wf)&simwork==1)=1;
-frich(simwm<1/2*numel(wm)&simwf>1/2*numel(wf)&simwork==1)=1;
-mid(simwm<=3/2*numel(wm)&simwm>=2/3*numel(wm)&simwf<=3/2*numel(wf)&simwf>=2/3*numel(wf)&simwork==1)=1;
-bpoor(simwm<1/2*numel(wm)&simwf<1/2*numel(wf)&simwork==1)=1;
+brich(simwm>mean(mean(simwm))&simwf>mean(mean(simwf))&simwork==1)=1;
+mrich(simwm>mean(mean(simwm))&simwf<=mean(mean(simwf))&simwork==1)=1;
+frich(simwm<mean(mean(simwm))&simwf>mean(mean(simwf))&simwork==1)=1;
+mid(simwm<=3/2*mean(mean(simwm))&simwm>=2/3*mean(mean(simwm))&simwf<=3/2*mean(mean(simwf))&simwf>=2/3*mean(mean(simwf))&simwork==1)=1;
+bpoor(simwm<1/2*mean(mean(simwm))&simwf<1/2*mean(mean(simwm))&simwork==1)=1;
 
 
 % Employment rate and wage distribution conditional on number of kids/kids age and parent's age
@@ -1534,7 +1566,7 @@ ratioleavebackm=nhleavem/sum(sum(quitbirthm));
 ratioleavebackf=nhleavef/sum(sum(quitbirthf));
 
 
-
+toc
 
 %%
 %Memos
