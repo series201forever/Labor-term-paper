@@ -765,8 +765,12 @@ aux = rand(nsim,period);
 aux2 = rand(nsim,period);
 aux3 = zeros(numel(wm),1);
 aux4 = zeros(numel(wf),1);
+
 for k=1:numel(wm)
 aux3(k)=sum(distwm(1:k));
+end
+
+for k=1:numel(wf)
 aux4(k)=sum(distwf(1:k));
 end
 
@@ -837,7 +841,6 @@ for i = 1:nsim
         simwm(i,1) = simwofferm(i,1);  % Irrelevant. Assign random value
         simwf(i,1) = simwofferf(i,1);  
         simstate(i,1) = simwm(i,1)+(simwf(i,1)-1)*numel(wm);
-        simoffer(i,1) = 3;
         simwork(i,1) = Pfmat(simstate(i,1),1);
         
     else                                    
