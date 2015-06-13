@@ -10,30 +10,30 @@ tic
 
 % Flow utility is stored in "flowu.m"
 
-% Set hypothetical para
-% Flow utility para
-ucurve = 0.6;
-vfir   = 4;
-vsec   = 0.5;
-cint   = 25;
-cslope = 5;    
-cageint   = -0.3;
-cageslope = 0.3;
-conskid=0.7;
+%Set initial parameters
+ucurve = 0.4947;
+vfir   = 3.9883;
+vsec   = 0.3705;
+cint   = 35.8885;
+cslope = 10.2972;    
+cageint   = -0.1116;
+cageslope = 0.4128;
+conskid=0.7213;
+mum     = 3.3192;
+muf     =2.8007;
+sigmam  = 0.8;
+sigmaf  = 0.4428;
+Gamma = 0.1637;
 
-% Dynamic parameters, borrowed from Dey Flinn
-Beta    = 0.98;  % Capitalized to prevent confusion with beta function
-deltam  = 0.032;
-deltaf  = 0.05;
-lambdam = 0.4;
-lambdaf = 0.3;
-mum     = 3.5;
-muf     = 3.103;
-sigmam  = 0.14;
-sigmaf  = 0.135;
+%These are the parameters estimated from SIPP data separately.
+deltam  = 0.1287;
+deltaf  = 0.1416;
+lambdam = 0.3804;
+lambdaf = 0.2;
 
-%Child arrival probability
-Gamma = 0.09;  % Capitalized to prevent confusion with the gamma function
+
+%Beta cannot be identified. So fix it to some value.
+Beta    = 0.98;   % Capitalized to prevent confusion with the gamma function
 
 %%
 % Set state space

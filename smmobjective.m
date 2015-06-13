@@ -17,9 +17,9 @@ cageslope = para(7);
 conskid= para(8);
 mum     = para(9);
 muf     = para(10);
-sigmam  = parafixed(6);
-sigmaf  = parafixed(7);
-Gamma   = para(11);
+sigmam  = para(11);
+sigmaf  = para(12);
+Gamma   = para(13);
 deltam  = parafixed(1);
 deltaf  = parafixed(2);
 lambdam = parafixed(3);
@@ -1106,6 +1106,9 @@ for i = 1:nsim
             quitbirthm(i,t)=1;
         elseif simnkids(i,t-1)<simnkids(i,t) && simwork(i,t-1)==1 && simwork(i,t)==2
             quitbirthf(i,t)=1;
+        elseif simnkids(i,t-1)==simnkids(i,t)
+            quitbirthf(i,t)=-1;
+            quitbirthm(i,t)=-1;
         end
         
         if (simwork(i,t-1)==2||simwork(i,t-1)==4)&&(simwork(i,t)==1||simwork(i,t)==3)
@@ -1116,8 +1119,8 @@ for i = 1:nsim
         
     end
     
-    if sum(comebackm(i,:))>0&&sum(quitbirthm(i,:))>0&&sum(quitbirthm(i,:))<9
-        aux=find(quitbirthm(i,:));
+    if sum(comebackm(i,:))>0&&sum(quitbirthm(i,:)>0)>0&&sum(quitbirthm(i,:)>0)<9
+        aux=find(quitbirthm(i,:)>0);
         for j=1:numel(aux)
             aux2=aux(j):period;
             aux3=min(intersect(find(comebackm(i,:)),aux2));
@@ -1131,12 +1134,12 @@ for i = 1:nsim
                 quitagem(i,j)=aux(j);
             end
         end
-    elseif sum(quitbirthm(i,:))>8
-        i %If one family experiences more than one child-quit, this doesn't work.
+    elseif sum(quitbirthm(i,:)>0)>8
+        i; %If one family experiences more than one child-quit, this doesn't work.
     end
     clear aux aux2 aux3
-     if sum(comebackf(i,:))>0&&sum(quitbirthf(i,:))>0&&sum(quitbirthf(i,:))<9
-        aux=find(quitbirthf(i,:));
+     if sum(comebackf(i,:))>0&&sum(quitbirthf(i,:)>0)>0&&sum(quitbirthf(i,:)>0)<9
+        aux=find(quitbirthf(i,:)>0);
         for j=1:numel(aux)
             aux2=aux(j):period;
             aux3=min(intersect(find(comebackf(i,:)),aux2));
@@ -1150,7 +1153,7 @@ for i = 1:nsim
                 quitagef(i,j)=aux(j);
             end
         end
-    elseif sum(quitbirthf(i,:))>8
+    elseif sum(quitbirthf(i,:)>0)>8
         i %If one family experiences more than one child-quit, this doesn't work.
      end
     clear aux aux2 aux3
@@ -1196,10 +1199,10 @@ meanwagefokidobs=[22.404,21.3,19.536];   %SIPP
 
 
 
-% varwagemykidobs=[ , , ];
-% varwagefykidobs=[ , , ];
-% varwagemokidobs=[ , , ];
-% varwagefokidobs=[ , , ];
+ varwagemykidobs=[238.173661,282.918589, 360.031498]; %SIPP%(SD in the table)^2 * 144 (12^2) divided by 1000000
+ varwagefykidobs=[156.03957, 149.054211, 125.520428]; %SIPP
+ varwagemokidobs=[445.935291,518.513886,533.500788]; %SIPP
+ varwagefokidobs=[242.386786, 242.890728, 260.593736]; %SIPP
 
 %%%%%
 
@@ -1211,17 +1214,51 @@ meanwagefokidobs=[22.404,21.3,19.536];   %SIPP
 %Childbirth rate
 birthratey=sum(simnkids(:,(period/2)))./(nsim*period/2);
 birthrateo=(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))))./(nsim*period/2);
-moment1=[birthratey,birthrateo]-[birthrateyobs,birthrateoobs];
+varbirthratey=(sum((simnkids(:,(period/2))-birthratey).^2))/((nsim*period/2)-1);
+varbirthrateo=(sum((simnkids(:,(period))-simnkids(:,(period/2))-birthrateo).^2))/((nsim*period/2)-1);
+%moment1=[birthratey,birthrateo]-[birthrateyobs,birthrateoobs];
+
+%I standardize them by dividing the standard errors. Note that I divide it
+%by std error of the numerator (mean), not by original std error.
+moment1=[(birthratey-birthrateyobs)/sqrt(varbirthratey/(nsim*period/2)),...
+    (birthrateo-birthrateoobs)/sqrt(varbirthrateo/(nsim*period/2))];
+
 
 %Probability of quitting with birth conditional on parents' age and gender
-pquitmy=sum(sum(quitbirthm(:,1:(period/2))))/sum(simnkids(:,(period/2)));
-pquitmo=sum(sum(quitbirthm(:,(period/2+1):period)))/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))));
-pquitfy=sum(sum(quitbirthf(:,1:(period/2))))/sum(simnkids(:,(period/2)));
-pquitfo=sum(sum(quitbirthf(:,(period/2+1):period)))/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))));
+aux=quitbirthm(:,1:(period/2));
+aux2=quitbirthm(:,(period/2+1):period);
+aux3=quitbirthf(:,1:(period/2));
+aux4=quitbirthf(:,(period/2+1):period);
 
-moment2=[pquitmy,pquitmo,pquitfy,pquitfo]-[pquitmyobs,pquitmoobs,pquitfyobs,pquitfoobs];
+pquitmy=sum(sum(aux(aux>=0)))/sum(simnkids(:,(period/2)));
+pquitmo=sum(sum(aux2(aux2>=0)))/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))));
+pquitfy=sum(sum(aux3(aux3>=0)))/sum(simnkids(:,(period/2)));
+pquitfo=sum(sum(aux4(aux4>=0)))/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))));
 
+varquitmy=(sum(sum((aux(aux>=0)-pquitmy).^2)))/(sum(simnkids(:,(period/2)))-1);
+varquitmo=((aux2(aux2>=0)-pquitmo).'*(aux2(aux2>=0)-pquitmo))/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2)))-1);
+varquitfy=(sum(sum((aux3(aux3>=0)-pquitfy).^2)))/(sum(simnkids(:,(period/2)))-1);
+varquitfo=(sum(sum((aux4(aux4>=0)-pquitfo).^2)))/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2)))-1);
 
+if pquitmy==0
+    pquitmy=1;
+    varquitmy=0.0001;
+elseif pquitmo==0
+    pquitmo=1;
+    varquitmo=0.0001;
+elseif pquitfy==0
+    pquitfy=1;
+    varquitfy=0.0001;
+elseif pquitfo==0
+    pquitfo=1;
+    varquitfo=0.0001;
+end
+    %moment2=[pquitmy,pquitmo,pquitfy,pquitfo]-[pquitmyobs,pquitmoobs,pquitfyobs,pquitfoobs];
+moment2=[(pquitmy-pquitmyobs)/sqrt(varquitmy/(sum(simnkids(:,(period/2))))),...
+    (pquitmo-pquitmoobs)/sqrt(varquitmo/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2))))),...
+    (pquitfy-pquitfyobs)/sqrt(varquitfy/(sum(simnkids(:,(period/2))))),...
+    (pquitfo-pquitfoobs)/sqrt(varquitfo/(sum(simnkids(:,(period)))-sum(simnkids(:,(period/2)))))];
+clear aux aux2 aux3 aux4
 
 
 % (3) Leaving durations, conditional on childbirth quitting
@@ -1229,9 +1266,40 @@ meanquitdurmy=mean(quitdurm(quitdurm>0&quitdurm<10&quitagem<period/2));
 meanquitdurmo=mean(quitdurm(quitdurm>0&quitdurm<10&quitagem>=period/2));
 meanquitdurfy=mean(quitdurf(quitdurf>0&quitdurf<10&quitagef<period/2));
 meanquitdurfo=mean(quitdurf(quitdurf>0&quitdurf<10&quitagef>=period/2));
+varquitdurmy=var(quitdurm(quitdurm>0&quitdurm<10&quitagem<period/2));
+varquitdurmo=var(quitdurm(quitdurm>0&quitdurm<10&quitagem>=period/2));
+varquitdurfy=var(quitdurf(quitdurf>0&quitdurf<10&quitagef<period/2));
+varquitdurfo=var(quitdurf(quitdurf>0&quitdurf<10&quitagef>=period/2));
+nsampledurmy=numel(quitdurm(quitdurm>0&quitdurm<10&quitagem<period/2));
+nsampledurmo=numel(quitdurm(quitdurm>0&quitdurm<10&quitagem>=period/2));
+nsampledurfy=numel(quitdurf(quitdurf>0&quitdurf<10&quitagef<period/2));
+nsampledurfo=numel(quitdurf(quitdurf>0&quitdurf<10&quitagef>=period/2));
 
-moment3=[meanquitdurmy,meanquitdurmo,meanquitdurfy,meanquitdurfo]-[meanquitdurmyobs,meanquitdurmoobs,meanquitdurfyobs,meanquitdurfoobs];
+%Punish no quitting
+if isnan(meanquitdurmy)==1
+    meanquitdurmy=5;
+    varquitdurmy=0.001;
+    nsampledurmy=1;
+elseif isnan(meanquitdurmo)==1
+    meanquitdurmo=5;
+    varquitdurmo=0.001;
+    nsampledurmo=1;
+elseif isnan(meanquitdurfy)==1
+    meanquitdurfy=5;
+    varquitdurfy=0.001;
+    nsampledurfy=1;
+elseif isnan(meanquitdurfo)==1
+    meanquitdurfo=5;
+    varquitdurfo=0.001;
+    nsampledurfo=1;
+end
+%moment3=[meanquitdurmy,meanquitdurmo,meanquitdurfy,meanquitdurfo]-[meanquitdurmyobs,meanquitdurmoobs,meanquitdurfyobs,meanquitdurfoobs];
 
+%Standardized moments
+moment3=[(meanquitdurmy-meanquitdurmyobs)/sqrt(varquitdurmy/nsampledurmy),...
+    (meanquitdurmo-meanquitdurmoobs)/sqrt(varquitdurmo/nsampledurmo),...
+    (meanquitdurfy-meanquitdurfyobs)/sqrt(varquitdurfy/nsampledurfy),...
+    (meanquitdurfo-meanquitdurfoobs)/sqrt(varquitdurfo/nsampledurfo)];
 
 
 
@@ -1267,6 +1335,14 @@ meanwagemokid=zeros(numel(nt),1);
 meanwagefokid=zeros(numel(nt),1);
 varwagemokid=zeros(numel(nt),1);
 varwagefokid=zeros(numel(nt),1);
+nsamplemy=zeros(numel(nt),1);
+nsamplemo=zeros(numel(nt),1);
+nsamplefy=zeros(numel(nt),1);
+nsamplefo=zeros(numel(nt),1);
+varvarwagemykid=zeros(numel(nt),1);
+varvarwagemokid=zeros(numel(nt),1);
+varvarwagefykid=zeros(numel(nt),1);
+varvarwagefokid=zeros(numel(nt),1);
 
 for n = 1:numel(nt)
 aux4=zeros(nsim,period);
@@ -1285,21 +1361,29 @@ meanwagemokid(n)=mean(wm(aux8(aux5(:,15:period))));
 varwagemokid(n)=var(wm(aux8(aux5(:,15:period))));
 meanwagefokid(n)=mean(wf(aux9(aux7(:,15:period))));
 varwagefokid(n)=var(wf(aux9(aux7(:,15:period))));
+nsamplemy(n)=numel(aux5(:,1:14)>0);
+nsamplemo(n)=numel(aux8>0);
+nsamplefy(n)=numel(aux7(:,1:14)>0);
+nsamplefo(n)=numel(aux9>0);
+varvarwagemykid(n)=(sum(((wm(aux4(aux5(:,1:14)))-meanwagemykid(n)).^2-varwagemykid(n)).^2))/(nsamplemy(n)-1); %Variance of variance
+varvarwagemokid(n)=(sum(((wm(aux8(aux5(:,15:period)))-meanwagemokid(n)).^2-varwagemokid(n)).^2))/(nsamplemo(n)-1); 
+varvarwagefykid(n)=(sum(((wf(aux6(aux7(:,1:14)))-meanwagefykid(n)).^2-varwagefykid(n)).^2))/(nsamplefy(n)-1); 
+varvarwagefokid(n)=(sum(((wf(aux9(aux7(:,15:period)))-meanwagefokid(n)).^2-varwagefokid(n)).^2))/(nsamplefo(n)-1); 
 end
 
 clear aux4 aux5 aux6 aux7 aux8 aux9
 
-%%%%%%%%%%%%%%%%%%%%only for test
-varwagemykidobs=varwagemykid(2:4).';
-varwagefykidobs=varwagefykid(2:4).';
-varwagemokidobs=varwagemokid(2:4).';
-varwagefokidobs=varwagefokid(2:4).';
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-moment6=[(meanwagemykid(2:4).'-meanwagemykidobs)./(varwagemykid(2:4).'), (meanwagefykid(2:4).'-meanwagefykidobs)./(varwagefykid(2:4).'),...
-    (meanwagemokid(2:4).'-meanwagemokidobs)./(varwagemokid(2:4).'), (meanwagefokid(2:4).'-meanwagefokidobs)./(varwagefokid(2:4).')];
+moment6=[(meanwagemykid(2:4).'-meanwagemykidobs)./sqrt((varwagemykid(2:4)./(nsamplemy(2:4))).'),...
+    (meanwagefykid(2:4).'-meanwagefykidobs)./sqrt((varwagefykid(2:4)./(nsamplefy(2:4))).'),...
+    (meanwagemokid(2:4).'-meanwagemokidobs)./sqrt((varwagemokid(2:4)./(nsamplemo(2:4))).'),...
+    (meanwagefokid(2:4).'-meanwagefokidobs)./sqrt((varwagefokid(2:4)./(nsamplefo(2:4))).'),...
+    (varwagemykid(2:4).'-varwagemykidobs)./sqrt((varvarwagemykid(2:4)./(nsamplemy(2:4))).'),...
+    (varwagemokid(2:4).'-varwagemokidobs)./sqrt((varvarwagemokid(2:4)./(nsamplemo(2:4))).'),...
+    (varwagefykid(2:4).'-varwagefykidobs)./sqrt((varvarwagefykid(2:4)./(nsamplefy(2:4))).'),...
+    (varwagefokid(2:4).'-varwagefokidobs)./sqrt((varvarwagefokid(2:4)./(nsamplefo(2:4))).')];
     
-
+    
 %moment6=[(meanwagemykid(2:4).',meanwagefykid(2:4).',meanwagemokid(2:4).',meanwagefokid(2:4).',...
 %     varwagemykid(2:4).',varwagefykid(2:4).',varwagemokid(2:4).',varwagefokid(2:4).']...
 %     -[meanwagemykidobs, meanwagefykidobs, meanwagemokidobs, meanwagefokidobs,...
@@ -1307,13 +1391,25 @@ moment6=[(meanwagemykid(2:4).'-meanwagemykidobs)./(varwagemykid(2:4).'), (meanwa
 
 
 % (7) Number of children at the end of career 
-kids0=numel(simnkids(:,20)==0)/nsim;
-kids1=numel(simnkids(:,20)==1)/nsim;
-kids2=numel(simnkids(:,20)==2)/nsim;
-kids3=numel(simnkids(:,20)==3)/nsim;
-kids4=numel(simnkids(:,20)==4)/nsim;
-% 
-moment7=[kids0,kids1,kids2,kids3,kids4]-[kids0obs,kids1obs,kids2obs,kids3obs,kids4obs];
+kids0=sum(simnkids(:,20)==0)/nsim;
+kids1=sum(simnkids(:,20)==1)/nsim;
+kids2=sum(simnkids(:,20)==2)/nsim;
+kids3=sum(simnkids(:,20)==3)/nsim;
+kids4=sum(simnkids(:,20)==4)/nsim;
+varkids0=(sum(((simnkids(:,20)==0)-kids0).^2))/(nsim-1);
+varkids1=(sum(((simnkids(:,20)==1)-kids1).^2))/(nsim-1);
+varkids2=(sum(((simnkids(:,20)==2)-kids2).^2))/(nsim-1);
+varkids3=(sum(((simnkids(:,20)==3)-kids3).^2))/(nsim-1);
+varkids4=(sum(((simnkids(:,20)==4)-kids4).^2))/(nsim-1);
+
+%Is this the right way to standardize...?
+%Standardization of density???
+moment7=[(kids0-kids0obs)/sqrt(varkids0/nsim),...
+    (kids1-kids1obs)/sqrt(varkids1/nsim),...
+    (kids2-kids2obs)/sqrt(varkids2/nsim),...
+    (kids3-kids3obs)/sqrt(varkids3/nsim),...
+    (kids4-kids4obs)/sqrt(varkids4/nsim)];
+    
 
 
 %Define objective function
